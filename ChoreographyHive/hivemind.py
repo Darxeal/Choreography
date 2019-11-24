@@ -70,7 +70,6 @@ class Hivemind:
 
         # MAIN LOOP:
         while self.loop_check():
-            #print('test')
 
             prev_time = packet.game_info.seconds_elapsed
             # Updating the game tick packet.
@@ -90,7 +89,7 @@ class Hivemind:
 
             # Processing drone data.
             for drone in self.drones:
-                drone.update(packet.game_cars[drone.index])
+                drone.update(packet.game_cars[drone.id])
 
             # Steps through the choreography.
             self.choreo.step(packet, self.drones)
@@ -104,7 +103,7 @@ class Hivemind:
             # Sends the drone inputs to the drones.
             for drone in self.drones:
                 self.game_interface.update_player_input(
-                    convert_player_input(drone.ctrl), drone.index)
+                    convert_player_input(drone.controls), drone.id)
 
     def loop_check(self):
         """
@@ -131,5 +130,5 @@ def convert_player_input(ctrl: SimpleControllerState) -> PlayerInput:
     player_input.jump = ctrl.jump
     player_input.boost = ctrl.boost
     player_input.handbrake = ctrl.handbrake
-    player_input.use_item = ctrl.use_item
+    # player_input.use_item = ctrl.use_item
     return player_input
