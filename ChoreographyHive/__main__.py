@@ -212,7 +212,7 @@ class RLBotChoreography:
         # Dropdown menu.
         self.choreographies = reload_choreographies()
         menuvar = tk.StringVar(root)
-        menuvar.set('LightfallChoreography') # Set the default option
+        menuvar.set('DarxealChoreography')  # Set the default option
         dropMenu = tk.OptionMenu(frame, menuvar, *self.choreographies, command=choreo_selected)
         dropMenu.pack()
 
