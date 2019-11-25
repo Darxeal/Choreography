@@ -1,7 +1,6 @@
 import math
 from typing import List
 
-from rlbot.utils.game_state_util import GameState, CarState, Physics, Vector3, Rotator, BallState
 from rlbot.utils.structures.game_interface import GameInterface
 
 from choreography.choreography import Choreography
@@ -9,7 +8,6 @@ from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
 
 from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at
-
 from rlutilities.simulation import Ball, Input
 
 
@@ -29,7 +27,7 @@ class FormACircle(StateSettingStep):
             angle = i * math.pi * 2 / len(drones)
             rot = rotation(angle)
             v = vec3(dot(rot, vec2(1, 0)))
-            drone.position = v * self.radius
+            drone.position = v * self.radius + self.center
             drone.orientation = look_at(v * -1, vec3(0, 0, 1))
             drone.velocity = vec3(0, 0, 0)
 
@@ -58,12 +56,9 @@ class DarxealChoreography(Choreography):
         super().__init__(game_interface)
 
     def generate_sequence(self):
-        self.sequence.clear()
-
         self.sequence = [
-            YeetTheBallOutOfTheUniverse(self.game_interface),
-            FormACircle(self.game_interface),
+            YeetTheBallOutOfTheUniverse(),
+            FormACircle(),
             DriveBackward(),
             DriveForward()
         ]
-

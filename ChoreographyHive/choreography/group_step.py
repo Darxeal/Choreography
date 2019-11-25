@@ -1,6 +1,5 @@
-from typing import Callable, List
+from typing import List
 
-from rlbot.agents.base_agent import SimpleControllerState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
 from rlbot.utils.game_state_util import GameState, CarState, Physics, Vector3, Rotator, BallState
@@ -23,7 +22,7 @@ class GroupStep:
         self.start_time: float = None
         assert self.duration > 0.0
 
-    def perform(self, packet: GameTickPacket, drones: List[Drone]) -> StepResult:
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         time = packet.game_info.seconds_elapsed
         if not self.start_time:
             self.start_time = time
@@ -37,9 +36,9 @@ class DroneListStep(GroupStep):
     with this one.
     """
 
-    def perform(self, packet: GameTickPacket, drones: List[Drone]) -> StepResult:
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         self.step(packet, drones)
-        return super().perform(packet, drones)
+        return super().perform(packet, drones, interface)
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         raise NotImplementedError
@@ -51,7 +50,7 @@ class PerDroneStep(GroupStep):
     because you have access to the drone's index, position, velocity, etc.
     """
 
-    def perform(self, packet: GameTickPacket, drones: List[Drone]) -> StepResult:
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         for drone in drones:
             self.step(packet, drone)
         return super().perform(packet, drones)
@@ -82,14 +81,10 @@ def mat3_to_rotator(mat: mat3) -> Rotator:
     return Rotator(pyr[0], pyr[1], pyr[2])
 
 
-class StateSettingStep(DroneListStep):
+class StateSettingStep(GroupStep):
     duration = 0.1  # wait a bit for state setting to take effect
 
-    def __init__(self, interface: GameInterface):
-        super().__init__()
-        self.interface = interface
-
-    def step(self, packet: GameTickPacket, drones: List[Drone]):
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         ball = Ball()
         ball.position = vector3_to_vec3(packet.game_ball.physics.location)
         ball.velocity = vector3_to_vec3(packet.game_ball.physics.velocity)
@@ -116,7 +111,8 @@ class StateSettingStep(DroneListStep):
                 ),
                 drone.boost
             )
-        self.interface.set_game_state(state)
+        interface.set_game_state(state)
+        return super().perform(packet, drones, interface)
 
     def set_ball_state(self, ball: Ball):
         pass
