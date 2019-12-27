@@ -8,8 +8,10 @@ from choreography.choreography import Choreography
 from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
 
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at
+from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3
 from rlutilities.simulation import Ball, Input
+
+from choreography.img_to_shape import convert_img_to_shape
 
 
 class YeetTheBallOutOfTheUniverse(StateSettingStep):
@@ -56,7 +58,7 @@ class LurchForward(BlindBehaviorStep):
         controls.boost = True
 
 
-class Spiral(DroneListStep):
+class Spiral(StateSettingStep):
     duration = 1.5
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
@@ -65,11 +67,23 @@ class Spiral(DroneListStep):
             drone.controls.throttle = a*i
 
 
+class Drawing(StateSettingStep):
+    origin = vec3(-1000, 2800, 0)
+    shape = convert_img_to_shape('dickbutt.png')
+    
+    def set_drone_states(self, drones: List[Drone]):
+        for i, drone in enumerate(drones):
+            if i < len(self.shape):
+                drone.position = self.origin + self.shape[i]
+                drone.orientation = mat3(1,0,0,0,1,0,0,0,1)
+                drone.velocity = vec3(0, 0, 0)
+
+
 class Test(Choreography):
 
-    @staticmethod
-    def get_num_bots():
-        return 32
+    # @staticmethod
+    # def get_num_bots():
+    #     return 64
 
     def __init__(self, game_interface: GameInterface):
         super().__init__(game_interface)
@@ -77,6 +91,5 @@ class Test(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            FormACircle(),
-            Spiral()
+            Drawing()
         ]
