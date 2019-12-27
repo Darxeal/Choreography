@@ -53,7 +53,7 @@ class PerDroneStep(GroupStep):
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         for drone in drones:
             self.step(packet, drone)
-        return super().perform(packet, drones)
+        return super().perform(packet, drones, interface)
 
     def step(self, packet: GameTickPacket, drone: Drone):
         raise NotImplementedError
