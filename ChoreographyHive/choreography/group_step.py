@@ -20,13 +20,14 @@ class GroupStep:
 
     def __init__(self):
         self.start_time: float = None
+        self.finished = False
         assert self.duration > 0.0
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         time = packet.game_info.seconds_elapsed
         if not self.start_time:
             self.start_time = time
-        return StepResult(finished=time > self.start_time + self.duration)
+        return StepResult(finished=self.finished or time > self.start_time + self.duration)
 
 
 class DroneListStep(GroupStep):
