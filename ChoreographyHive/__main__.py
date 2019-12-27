@@ -131,7 +131,7 @@ class RLBotChoreography:
 
                 # If not loaded yet, import it.
                 except:
-                    print(f'Module not found, importing {module}')
+                    print(f'Importing {module}')
                     import_module(module)
                     classes = inspect.getmembers(sys.modules[module], inspect.isclass)
 
