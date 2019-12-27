@@ -68,8 +68,12 @@ class Spiral(StateSettingStep):
 
 
 class Drawing(StateSettingStep):
-    origin = vec3(-1000, 2800, 0)
-    shape = convert_img_to_shape('dickbutt.png')
+
+    def __init__(self, image, origin=vec3(0,0,18), duration=2.0):
+        super().__init__()
+        self.duration = duration
+        self.origin = origin
+        self.shape = convert_img_to_shape(image)
     
     def set_drone_states(self, drones: List[Drone]):
         for i, drone in enumerate(drones):
@@ -77,6 +81,9 @@ class Drawing(StateSettingStep):
                 drone.position = self.origin + self.shape[i]
                 drone.orientation = mat3(1,0,0,0,1,0,0,0,1)
                 drone.velocity = vec3(0, 0, 0)
+            else:
+                drone.position = vec3(0, 0, 3000)
+
 
 
 class Test(Choreography):
@@ -91,5 +98,6 @@ class Test(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            Drawing()
+            Drawing('heart.png'),
+            Drawing('dickbutt.png', duration=0.1)
         ]
