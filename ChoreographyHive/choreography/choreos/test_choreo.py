@@ -8,7 +8,7 @@ from choreography.choreography import Choreography
 from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
 
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3
+from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm
 from rlutilities.simulation import Ball, Input
 
 from choreography.img_to_shape import convert_img_to_shape
@@ -35,20 +35,6 @@ class FormACircle(StateSettingStep):
             drone.velocity = vec3(0, 0, 0)
 
 
-class DriveBackward(BlindBehaviorStep):
-    duration = 1.0
-
-    def set_controls(self, controls: Input):
-        controls.throttle = -0.4
-
-
-class DriveForward(BlindBehaviorStep):
-    duration = 1.0
-
-    def set_controls(self, controls: Input):
-        controls.throttle = 0.5
-
-
 class LurchForward(BlindBehaviorStep):
     duration = 0.6
 
@@ -58,13 +44,46 @@ class LurchForward(BlindBehaviorStep):
         controls.boost = True
 
 
-class Spiral(StateSettingStep):
+class Spiral(DroneListStep):
     duration = 1.5
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         a = 1.0 / len(drones)
         for i, drone in enumerate(drones):
             drone.controls.throttle = a*i
+
+
+class FlowerSetup(StateSettingStep):
+    radius = 200
+    center = vec3(0, 0, 100)
+
+    def set_drone_states(self, drones: List[Drone]):
+        for i, drone in enumerate(drones):
+            angle = i * math.pi * 2 / len(drones)
+            rot = rotation(angle)
+            v = vec3(dot(rot, vec2(1, 0)))
+            drone.position = v * self.radius + self.center
+            drone.orientation = look_at(vec3(0,0,1), v)
+            drone.velocity = vec3(0, 0, 500)
+
+
+class BoostUntilFast(DroneListStep):
+    def step(self, packet: GameTickPacket, drones: List[Drone]):
+        self.finished = norm(drones[0].velocity) > 1000
+        print(self.finished)
+
+        for i, drone in enumerate(drones):
+            drone.controls.pitch = 0
+            drone.controls.boost = True
+
+
+class Bloom(BlindBehaviorStep):
+    duration = 2.0
+
+    def set_controls(self, controls: Input):
+        controls.pitch = 0.5
+        controls.boost = True
+
 
 
 class Drawing(StateSettingStep):
@@ -98,6 +117,7 @@ class Test(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            Drawing('heart.png'),
-            Drawing('dickbutt.png', duration=0.1)
+            FlowerSetup(),
+            BoostUntilFast(),
+            Bloom()
         ]
