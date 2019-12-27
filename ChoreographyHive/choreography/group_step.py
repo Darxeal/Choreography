@@ -14,11 +14,11 @@ class StepResult:
         self.finished = finished
 
 
-class GroupStepDuration:
+class GroupStep:
     duration: float = 0.0
 
     def __init__(self):
-        self.start_time: float = 0
+        self.start_time: float = None
         assert self.duration > 0.0
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
@@ -28,7 +28,7 @@ class GroupStepDuration:
         return StepResult(finished=time > self.start_time + self.duration)
 
 
-class DroneListStep(GroupStepDuration):
+class DroneListStep(GroupStep):
     """
     'step' receives the entire drone list. More powerful but less
     convenient than PerDroneStep. It should be possible to accomplish almost anything
@@ -43,7 +43,7 @@ class DroneListStep(GroupStepDuration):
         raise NotImplementedError
 
 
-class PerDroneStep(GroupStepDuration):
+class PerDroneStep(GroupStep):
     """
     Calls 'step' for every drone individually. They can still behave differently
     because you have access to the drone's index, position, velocity, etc.
@@ -80,7 +80,7 @@ def mat3_to_rotator(mat: mat3) -> Rotator:
     return Rotator(pyr[0], pyr[1], pyr[2])
 
 
-class StateSettingStep(GroupStepDuration):
+class StateSettingStep(GroupStep):
     duration = 0.1  # wait a bit for state setting to take effect
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:

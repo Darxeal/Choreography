@@ -10,6 +10,7 @@ class Drone(Car):
         super().__init__()
         self.team = team
         self.id = index
+        self.mechanic = None
 
     def update(self, game_car: PlayerInfo):
         self.position = vector3_to_vec3(game_car.physics.location)
