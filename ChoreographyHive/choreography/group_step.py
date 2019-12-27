@@ -1,13 +1,12 @@
 from typing import List
 
+from rlbot.utils.game_state_util import GameState, CarState, Physics, Vector3, Rotator, BallState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
-from rlbot.utils.game_state_util import GameState, CarState, Physics, Vector3, Rotator, BallState
 
 from choreography.drone import Drone, vector3_to_vec3
-from rlutilities.simulation import Input, Ball
-
 from rlutilities.linear_algebra import vec3, mat3, rotation_to_euler
+from rlutilities.simulation import Input, Ball
 
 
 class StepResult:
@@ -15,11 +14,11 @@ class StepResult:
         self.finished = finished
 
 
-class GroupStep:
+class GroupStepDuration:
     duration: float = 0.0
 
     def __init__(self):
-        self.start_time: float = None
+        self.start_time: float = 0
         assert self.duration > 0.0
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
@@ -29,7 +28,7 @@ class GroupStep:
         return StepResult(finished=time > self.start_time + self.duration)
 
 
-class DroneListStep(GroupStep):
+class DroneListStep(GroupStepDuration):
     """
     'step' receives the entire drone list. More powerful but less
     convenient than PerDroneStep. It should be possible to accomplish almost anything
@@ -44,7 +43,7 @@ class DroneListStep(GroupStep):
         raise NotImplementedError
 
 
-class PerDroneStep(GroupStep):
+class PerDroneStep(GroupStepDuration):
     """
     Calls 'step' for every drone individually. They can still behave differently
     because you have access to the drone's index, position, velocity, etc.
@@ -81,7 +80,7 @@ def mat3_to_rotator(mat: mat3) -> Rotator:
     return Rotator(pyr[0], pyr[1], pyr[2])
 
 
-class StateSettingStep(GroupStep):
+class StateSettingStep(GroupStepDuration):
     duration = 0.1  # wait a bit for state setting to take effect
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
