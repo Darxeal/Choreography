@@ -1,4 +1,5 @@
 from typing import List
+from math import inf
 
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
@@ -16,12 +17,11 @@ class StepResult:
 
 
 class GroupStep:
-    duration: float = 0.0
+    duration: float = inf
 
     def __init__(self):
         self.start_time: float = None
         self.finished = False
-        assert self.duration > 0.0
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         time = packet.game_info.seconds_elapsed
