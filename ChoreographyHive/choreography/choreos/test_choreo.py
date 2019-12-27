@@ -1,6 +1,7 @@
 import math
 from typing import List
 
+from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
 
 from choreography.choreography import Choreography
@@ -19,7 +20,7 @@ class YeetTheBallOutOfTheUniverse(StateSettingStep):
 
 
 class FormACircle(StateSettingStep):
-    radius = 1200
+    radius = 2000
     center = vec3(0, 0, 0)
 
     def set_drone_states(self, drones: List[Drone]):
@@ -28,7 +29,7 @@ class FormACircle(StateSettingStep):
             rot = rotation(angle)
             v = vec3(dot(rot, vec2(1, 0)))
             drone.position = v * self.radius + self.center
-            drone.orientation = look_at(v * (-1)**i, vec3(0, 0, 1))
+            drone.orientation = look_at(v * -1, vec3(0, 0, 1))
             drone.velocity = vec3(0, 0, 0)
 
 
@@ -45,13 +46,23 @@ class DriveForward(BlindBehaviorStep):
     def set_controls(self, controls: Input):
         controls.throttle = 0.5
 
-class JumpUpABit(BlindBehaviorStep):
+
+class LurchForward(BlindBehaviorStep):
     duration = 0.6
 
     def set_controls(self, controls: Input):
         controls.jump = True
         controls.pitch = 0.2
         controls.boost = True
+
+
+class Spiral(DroneListStep):
+    duration = 1.5
+
+    def step(self, packet: GameTickPacket, drones: List[Drone]):
+        a = 1.0 / len(drones)
+        for i, drone in enumerate(drones):
+            drone.controls.throttle = a*i
 
 
 class Test(Choreography):
@@ -67,14 +78,5 @@ class Test(Choreography):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
             FormACircle(),
-            DriveBackward(),
-            JumpUpABit(),
-            DriveForward(),
-            DriveBackward(),
-            JumpUpABit(),
-            DriveForward(),
-            DriveBackward(),
-            JumpUpABit(),
-            DriveForward(),
-            DriveBackward()
+            Spiral()
         ]
