@@ -8,7 +8,7 @@ from choreography.choreography import Choreography
 from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
 
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm
+from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm, cross
 from rlutilities.simulation import Ball, Input
 
 from choreography.img_to_shape import convert_img_to_shape
@@ -33,6 +33,7 @@ class FormACircle(StateSettingStep):
             drone.position = v * self.radius + self.center
             drone.orientation = look_at(v * -1, vec3(0, 0, 1))
             drone.velocity = vec3(0, 0, 0)
+            drone.angular_velocity = vec3(0, 0, 0)
 
 
 class LurchForward(BlindBehaviorStep):
@@ -53,9 +54,9 @@ class Spiral(DroneListStep):
             drone.controls.throttle = a*i
 
 
-class FlowerSetup(StateSettingStep):
-    radius = 200
-    center = vec3(0, 0, 100)
+class HexSetup(StateSettingStep):
+    radius = 300
+    center = vec3(-2000, 0, 100)
 
     def set_drone_states(self, drones: List[Drone]):
         for i, drone in enumerate(drones):
@@ -63,22 +64,22 @@ class FlowerSetup(StateSettingStep):
             rot = rotation(angle)
             v = vec3(dot(rot, vec2(1, 0)))
             drone.position = v * self.radius + self.center
-            drone.orientation = look_at(vec3(0,0,1), v)
+            drone.orientation = look_at(vec3(2,0,3), vec3(1,0,0))
             drone.velocity = vec3(0, 0, 500)
+            drone.angular_velocity = vec3(0, 0, 0)
 
 
 class BoostUntilFast(DroneListStep):
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         self.finished = norm(drones[0].velocity) > 1000
-        print(self.finished)
 
-        for i, drone in enumerate(drones):
+        for drone in drones:
             drone.controls.pitch = 0
             drone.controls.boost = True
 
 
-class Bloom(BlindBehaviorStep):
-    duration = 2.0
+class BackflipBoostyThing(BlindBehaviorStep):
+    duration = 6.0
 
     def set_controls(self, controls: Input):
         controls.pitch = 0.5
@@ -107,9 +108,9 @@ class Drawing(StateSettingStep):
 
 class Test(Choreography):
 
-    # @staticmethod
-    # def get_num_bots():
-    #     return 64
+    @staticmethod
+    def get_num_bots():
+        return 6
 
     def __init__(self, game_interface: GameInterface):
         super().__init__(game_interface)
@@ -117,7 +118,7 @@ class Test(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            FlowerSetup(),
+            HexSetup(),
             BoostUntilFast(),
-            Bloom()
+            BackflipBoostyThing()
         ]
