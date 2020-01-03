@@ -22,12 +22,18 @@ class GroupStep:
     def __init__(self):
         self.start_time: float = None
         self.finished = False
+        self.time = 0.0
+        self.dt = 0.0
+        self.time_since_start = 0.0
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
-        time = packet.game_info.seconds_elapsed
+        self.time = packet.game_info.seconds_elapsed
         if not self.start_time:
-            self.start_time = time
-        return StepResult(finished=self.finished or time > self.start_time + self.duration)
+            self.start_time = self.time
+            print(f'{type(self).__name__} started')
+
+        self.time_since_start = self.time - self.start_time
+        return StepResult(finished=self.finished or self.time > self.start_time + self.duration)
 
 
 class DroneListStep(GroupStep):
@@ -52,11 +58,11 @@ class PerDroneStep(GroupStep):
     """
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
-        for drone in drones:
-            self.step(packet, drone)
+        for index, drone in enumerate(drones):
+            self.step(packet, drone, index)
         return super().perform(packet, drones, interface)
 
-    def step(self, packet: GameTickPacket, drone: Drone):
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
         raise NotImplementedError
 
 
@@ -66,7 +72,7 @@ class BlindBehaviorStep(PerDroneStep):
     For example you could make everyone to boost simultaneously for .5 seconds.
     """
 
-    def step(self, packet: GameTickPacket, drone: Drone):
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
         self.set_controls(drone.controls)
 
     def set_controls(self, controls: Input):
