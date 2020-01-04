@@ -8,7 +8,7 @@ from choreography.choreography import Choreography
 from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
 
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, normalize, xy
+from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, normalize, xy, angle_between
 from rlutilities.simulation import Ball, Input
 
 
@@ -30,12 +30,26 @@ class FlyUp(PerDroneStep):
         self.finished = False  # set to True if you want to finish this step early
 
         # lets make the drones fly up with the Aerial mechanic
-        drone.aerial.target = drone.position + vec3(0, 0, 500)  # aim above the car
-        drone.aerial.up = normalize(drone.position)  # aerial.up is where the car should orient its roof when flying
+        drone.aerial.target = drone.position + vec3(0, 0, 500)
+        drone.aerial.up = normalize(drone.position)
+        # aerial.up is where the car should orient its roof when flying
         drone.aerial.arrival_time = self.time + 0.5  # some time in the near future so it flies fast
         drone.aerial.step(self.dt)
         drone.controls = drone.aerial.controls
         drone.controls.jump = True  # you can modify the controls
+
+
+# the same thing, but implemented with AerialTurn
+class FlyUpAerialTurn(PerDroneStep):
+    duration = 3.0
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        up = normalize(drone.position)
+        drone.aerial_turn.target = look_at(vec3(0, 0, 1), up)
+        drone.aerial_turn.step(self.dt)
+        drone.controls = drone.aerial_turn.controls
+        drone.controls.boost = angle_between(vec3(0, 0, 1), drone.forward()) < 0.5
+        drone.controls.jump = True
 
 
 # or you can use DroneListStep, if you want to loop over the drones yourself
@@ -77,6 +91,13 @@ class DriveForward(BlindBehaviorStep):
         controls.throttle = 1
 
 
+class Wait(BlindBehaviorStep):
+    duration = 1.0
+
+    def set_controls(self, controls: Input):
+        pass
+
+
 class ExampleChoreography(Choreography):
 
     @staticmethod
@@ -90,5 +111,6 @@ class ExampleChoreography(Choreography):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
             FormACircle(),
+            Wait(),
             FlyUp()
         ]

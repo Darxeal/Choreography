@@ -11,6 +11,7 @@ import time
 from choreography.drone import Drone
 from queue_commands import QCommand
 
+
 class Hivemind:
     """
     Sends and receives data from Rocket League, and maintains the list of drones.
@@ -89,7 +90,7 @@ class Hivemind:
 
             # Processing drone data.
             for drone in self.drones:
-                drone.update(packet.game_cars[drone.id])
+                drone.update(packet.game_cars[drone.id], packet)
 
             # Steps through the choreography.
             self.choreo.step(packet, self.drones)
@@ -111,7 +112,7 @@ class Hivemind:
         """
         if self.queue.empty():
             return True
-            
+
         else:
             message = self.queue.get()
             return message != QCommand.STOP

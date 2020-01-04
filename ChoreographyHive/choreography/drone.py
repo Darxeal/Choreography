@@ -1,4 +1,4 @@
-from rlbot.utils.structures.game_data_struct import Rotator, Vector3, PlayerInfo
+from rlbot.utils.structures.game_data_struct import Rotator, Vector3, PlayerInfo, GameTickPacket
 
 from rlutilities.simulation import Car, Input
 from rlutilities.linear_algebra import vec3, mat3, euler_to_rotation
@@ -15,12 +15,13 @@ class Drone(Car):
         self.aerial_turn = AerialTurn(self)
         self.aerial = Aerial(self)
 
-    def update(self, game_car: PlayerInfo):
+    def update(self, game_car: PlayerInfo, packet: GameTickPacket):
         self.position = vector3_to_vec3(game_car.physics.location)
         self.velocity = vector3_to_vec3(game_car.physics.velocity)
         self.orientation = rotator_to_mat3(game_car.physics.rotation)
         self.angular_velocity = vector3_to_vec3(game_car.physics.angular_velocity)
         self.boost = game_car.boost
+        self.time = packet.game_info.seconds_elapsed
 
         # Reset ctrl every tick.
         self.controls = Input()
