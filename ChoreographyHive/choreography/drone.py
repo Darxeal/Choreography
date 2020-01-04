@@ -3,6 +3,8 @@ from rlbot.utils.structures.game_data_struct import Rotator, Vector3, PlayerInfo
 from rlutilities.simulation import Car, Input
 from rlutilities.linear_algebra import vec3, mat3, euler_to_rotation
 
+from rlutilities.mechanics import Aerial, AerialTurn
+
 
 class Drone(Car):
 
@@ -10,6 +12,8 @@ class Drone(Car):
         super().__init__()
         self.team = team
         self.id = index
+        self.aerial_turn = AerialTurn(self)
+        self.aerial = Aerial(self)
 
     def update(self, game_car: PlayerInfo):
         self.position = vector3_to_vec3(game_car.physics.location)
