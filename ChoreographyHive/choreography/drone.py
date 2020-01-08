@@ -5,6 +5,8 @@ from rlutilities.linear_algebra import vec3, mat3, euler_to_rotation
 
 from rlutilities.mechanics import Aerial, AerialTurn
 
+from choreography.hover import Hover
+
 
 class Drone(Car):
 
@@ -14,6 +16,7 @@ class Drone(Car):
         self.id = index
         self.aerial_turn = AerialTurn(self)
         self.aerial = Aerial(self)
+        self.hover = Hover(self)
 
     def update(self, game_car: PlayerInfo, packet: GameTickPacket):
         self.position = vector3_to_vec3(game_car.physics.location)

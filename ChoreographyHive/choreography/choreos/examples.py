@@ -8,14 +8,15 @@ from choreography.choreography import Choreography
 from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
 
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, normalize, xy, angle_between
+from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, normalize, xy, angle_between, \
+    axis_to_rotation
 from rlutilities.simulation import Ball, Input
 
 
 # PerDroneStep is the base class you will probably be using the most
 # it simply runs the 'step' method for every drone
 class FlyUp(PerDroneStep):
-    duration = 3.0  # set this attribute if you want to limit the time this step runs for
+    duration = 1.0  # set this attribute if you want to limit the time this step runs for
 
     # you can override the constructor if you need some persistent variables
     def __init__(self):
@@ -41,7 +42,7 @@ class FlyUp(PerDroneStep):
 
 # the same thing, but implemented with AerialTurn
 class FlyUpAerialTurn(PerDroneStep):
-    duration = 3.0
+    duration = 1.0
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         up = normalize(drone.position)
@@ -83,6 +84,19 @@ class FormACircle(StateSettingStep):
             drone.velocity = vec3(0, 0, 0)
 
 
+class HoverExample(PerDroneStep):
+    duration = 10.0
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        drone.hover.up = normalize(drone.position)
+        clockwise_rotation = axis_to_rotation(vec3(0, 0, 0.5))
+        position_on_circle = normalize(xy(drone.position)) * 2000
+        drone.hover.target = dot(clockwise_rotation, position_on_circle)
+        drone.hover.target[2] = 1000
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+
 # BlindBehaviorStep just blindly sets controls to all bots
 class DriveForward(BlindBehaviorStep):
     duration = 0.1
@@ -112,5 +126,6 @@ class ExampleChoreography(Choreography):
             YeetTheBallOutOfTheUniverse(),
             FormACircle(),
             Wait(),
-            FlyUp()
+            FlyUp(),
+            HoverExample()
         ]
