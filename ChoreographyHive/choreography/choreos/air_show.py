@@ -41,24 +41,47 @@ class FormATriangle(StateSettingStep):
 
 
 class BoostUntilFast(PerDroneStep):
-    duration = 2
+    duration = 1.5
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        if index == 0:
+            pass
+        elif index % 2 == 0:
+            drone.aerial_turn.target = look_at(vec3(0, 1, 0.25), vec3(1, 0, 1))
+            drone.aerial_turn.step(self.dt)
+        else:
+            drone.aerial_turn.target = look_at(vec3(0, 1, 0.25), vec3(-1, 0, 1))
+            drone.aerial_turn.step(self.dt)
+        drone.controls = drone.aerial_turn.controls
+        drone.controls.boost = 1
+        drone.controls.throttle = 1
+
+
+class FlyOut(PerDroneStep):
+    duration = 0.25
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        if index == 0:
+            pass
+        else:
+            drone.controls.pitch = 1
+        drone.controls.boost = 1
+        drone.controls.throttle = 1
+
+
+class Boost(PerDroneStep):
+    duration = 1
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         drone.controls.boost = 1
         drone.controls.throttle = 1
-        if index == 0:
-            pass
-        elif index % 2 == 0:
-            drone.controls.roll = -1
-        else:
-            drone.controls.roll = 1
 
 
 class AirShow(Choreography):
 
     @staticmethod
     def get_num_bots():
-        return 5
+        return 9
 
     def __init__(self, game_interface: GameInterface):
         super().__init__(game_interface)
@@ -67,5 +90,7 @@ class AirShow(Choreography):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
             FormATriangle(),
-            BoostUntilFast()
+            BoostUntilFast(),
+            FlyOut(),
+            Boost()
         ]
