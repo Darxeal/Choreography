@@ -4,7 +4,7 @@ from rlutilities.linear_algebra import vec3
 
 def convert_img_to_shape(image: str, pixel_size=150):
     '''
-    Black pixels on image into list of vec3 which 
+    Black pixels on image are converted into a list of vec3 which 
     can be used for state-setting for drawing what was in the image.
     '''
     shape = []
