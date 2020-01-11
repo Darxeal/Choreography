@@ -13,46 +13,25 @@ from rlutilities.simulation import Ball, Input
 
 from choreography.img_to_shape import convert_img_to_shape
 
+from examples import YeetTheBallOutOfTheUniverse, FormACircle, Wait, FlyUp
 
-class YeetTheBallOutOfTheUniverse(StateSettingStep):
-    def set_ball_state(self, ball: Ball):
-        ball.position = vec3(0, 0, 3000)
-        ball.velocity = vec3(0, 0, 0)
-        ball.angular_velocity = vec3(0, 0, 0)
+# HEX FLIP COOL CLIP
+class HexDoubleFlip(Choreography):
 
+    @staticmethod
+    def get_num_bots():
+        return 6
 
-class FormACircle(StateSettingStep):
-    radius = 2000
-    center = vec3(0, 0, 0)
+    def __init__(self, game_interface: GameInterface):
+        super().__init__(game_interface)
 
-    def set_drone_states(self, drones: List[Drone]):
-        for i, drone in enumerate(drones):
-            angle = i * math.pi * 2 / len(drones)
-            rot = rotation(angle)
-            v = vec3(dot(rot, vec2(1, 0)))
-            drone.position = v * self.radius + self.center
-            drone.orientation = look_at(v * -1, vec3(0, 0, 1))
-            drone.velocity = vec3(0, 0, 0)
-            drone.angular_velocity = vec3(0, 0, 0)
-
-
-class LurchForward(BlindBehaviorStep):
-    duration = 0.6
-
-    def set_controls(self, controls: Input):
-        controls.jump = True
-        controls.pitch = 0.2
-        controls.boost = True
-
-
-class Spiral(DroneListStep):
-    duration = 1.5
-
-    def step(self, packet: GameTickPacket, drones: List[Drone]):
-        a = 1.0 / len(drones)
-        for i, drone in enumerate(drones):
-            drone.controls.throttle = a*i
-
+    def generate_sequence(self):
+        self.sequence = [
+            YeetTheBallOutOfTheUniverse(),
+            HexSetup(),
+            BoostUntilFast(),
+            BackflipBoostyThing()
+        ]
 
 class HexSetup(StateSettingStep):
     radius = 300
@@ -68,7 +47,6 @@ class HexSetup(StateSettingStep):
             drone.velocity = vec3(0, 0, 500)
             drone.angular_velocity = vec3(0, 0, 0)
 
-
 class BoostUntilFast(DroneListStep):
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         self.finished = norm(drones[0].velocity) > 1000
@@ -76,7 +54,6 @@ class BoostUntilFast(DroneListStep):
         for drone in drones:
             drone.controls.pitch = 0
             drone.controls.boost = True
-
 
 class BackflipBoostyThing(BlindBehaviorStep):
     duration = 6.0
@@ -86,7 +63,7 @@ class BackflipBoostyThing(BlindBehaviorStep):
         controls.boost = True
 
 
-
+# AUTOMATIC STATE SETTING INTO DRAWING
 class Drawing(StateSettingStep):
 
     def __init__(self, image, origin=vec3(0,0,18), duration=2.0):
@@ -105,12 +82,12 @@ class Drawing(StateSettingStep):
                 drone.position = vec3(0, 0, 3000)
 
 
-
-class Test(Choreography):
+# CIRCLES AND SPHERE FORMATION TESTS
+class CirclesAndSpheres(Choreography):
 
     @staticmethod
     def get_num_bots():
-        return 6
+        return 64
 
     def __init__(self, game_interface: GameInterface):
         super().__init__(game_interface)
@@ -118,7 +95,36 @@ class Test(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            HexSetup(),
-            BoostUntilFast(),
-            BackflipBoostyThing()
+            FormACircle(),
+            Wait(1.0),
+            FlyUp(),
+            HoverSpinUp(),
+            HoverSpinDown()
         ]
+
+class HoverSpinUp(PerDroneStep):
+    duration = 6.0
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        drone.hover.up = normalize(drone.position)
+        clockwise_rotation = axis_to_rotation(vec3(0, 0, self.time_since_start / 4))
+        position_on_circle = normalize(xy(drone.position)) * (2000 - self.time_since_start * 200)
+        drone.hover.target = dot(clockwise_rotation, position_on_circle)
+        drone.hover.target[2] = 1000
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+class HoverSpinDown(PerDroneStep):
+    duration = 6.0
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        drone.hover.up = normalize(drone.position)
+        clockwise_rotation = axis_to_rotation(vec3(0, 0, 1.5 - self.time_since_start / 4))
+        position_on_circle = normalize(xy(drone.position)) * (800 + self.time_since_start * 200)
+        drone.hover.target = dot(clockwise_rotation, position_on_circle)
+        drone.hover.target[2] = 1000
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+
+
