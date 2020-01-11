@@ -82,6 +82,7 @@ class FormACircle(StateSettingStep):
             drone.position = v * self.radius + self.center
             drone.orientation = look_at(v * -1, vec3(0, 0, 1))
             drone.velocity = vec3(0, 0, 0)
+            drone.angular_velocity = vec3(0, 0, 0)
 
 
 class HoverExample(PerDroneStep):
@@ -106,7 +107,10 @@ class DriveForward(BlindBehaviorStep):
 
 
 class Wait(BlindBehaviorStep):
-    duration = 1.0
+
+    def __init__(self, how_long: float=1.0):
+        self.duration = how_long
+        super().__init__()
 
     def set_controls(self, controls: Input):
         pass
@@ -125,7 +129,7 @@ class ExampleChoreography(Choreography):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
             FormACircle(),
-            Wait(),
+            Wait(1.0),
             FlyUp(),
             HoverExample()
         ]
