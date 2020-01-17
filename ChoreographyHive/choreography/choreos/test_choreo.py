@@ -9,7 +9,7 @@ from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
 
 from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm, normalize, \
-    xy, axis_to_rotation
+    xy, axis_to_rotation, euler_to_rotation
 from rlutilities.simulation import Ball, Input
 
 from choreography.img_to_shape import convert_img_to_shape
@@ -251,3 +251,69 @@ class HoverOrbit(PerDroneStep):
 
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
+# DOUBLE HELIX
+
+class DoubleHelix(Choreography):
+    
+    @staticmethod
+    def get_num_bots():
+        return 32
+
+    def __init__(self, game_interface: GameInterface):
+        super().__init__(game_interface)
+
+    def generate_sequence(self):
+        self.sequence = [
+            YeetTheBallOutOfTheUniverse(),
+            TwoLineSetup(),
+            Wait(1.0),
+            ForwardThenHelix()
+        ]
+
+class TwoLineSetup(StateSettingStep):
+    y_distance = 500
+    x_distance = 300
+    gap_offset = 300
+
+    def set_drone_states(self, drones: List[Drone]):
+        for i, drone in enumerate(drones):
+            angle = (-1)**i * -math.pi / 2
+            x = -self.x_distance * (-1)**i
+            y = (self.y_distance + self.gap_offset * (i//2)) * (-1)**i
+            drone.position = vec3(x, y, 20)
+            drone.orientation = euler_to_rotation(vec3(0, angle, 0))
+            drone.velocity = vec3(0, 0, 0)
+            drone.angular_velocity = vec3(0, 0, 0)
+
+class ForwardThenHelix(PerDroneStep):
+    duration = 13.0
+    radius = 500
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+
+        if drone.position[2] < 25:
+            drone.since_jumped = 0.0
+
+            # Go forward
+            drone.controls.throttle = 1.0 if abs(drone.velocity[1]) < 500 else 0.01
+
+            # If near half-line
+            if abs(drone.position[1]) < 200:
+                drone.controls.jump = True
+
+        else:
+            drone.since_jumped += self.dt
+
+            height = 50 + drone.since_jumped * 150
+            angle = 1.0 + drone.since_jumped * 1.2
+            if index % 2 == 0: angle += math.pi
+
+            rot = rotation(angle)
+            v = vec3(dot(rot, vec2(1, 0)))
+            drone.hover.target = v * self.radius
+            drone.hover.target[2] = height
+
+            drone.hover.up = normalize(drone.position)
+            drone.hover.step(self.dt)
+            drone.controls = drone.hover.controls
