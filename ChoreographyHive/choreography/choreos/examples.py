@@ -124,7 +124,7 @@ class ExampleChoreography(Choreography):
 
     @staticmethod
     def get_appearances(num_bots: int) -> List[str]:
-        # Half the bots have the default appearance, the other has a test appearance.
+        # Only index 3 has test appearance.
         appearances = ['default.cfg'] * num_bots
         appearances[3] = 'test.cfg'
         return appearances
