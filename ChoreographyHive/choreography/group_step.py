@@ -1,6 +1,7 @@
-from typing import List
+from typing import List, Iterable
 from math import inf
 
+from rlbot.utils.rendering.rendering_manager import RenderingManager
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
 from rlbot.utils.game_state_util import GameState, CarState, Physics, Vector3, Rotator, BallState
@@ -18,6 +19,7 @@ class StepResult:
 
 class GroupStep:
     duration: float = inf
+    target_indexes: Iterable[int] = range(64)
 
     def __init__(self):
         self.start_time: float = None
@@ -30,10 +32,51 @@ class GroupStep:
         self.time = packet.game_info.seconds_elapsed
         if not self.start_time:
             self.start_time = self.time
-            print(f'{type(self).__name__} started')
+            print(type(self).__name__)
 
         self.time_since_start = self.time - self.start_time
         return StepResult(finished=self.finished or self.time > self.start_time + self.duration)
+
+    def render(self, renderer: RenderingManager):
+        pass
+
+
+class ParallelStep(GroupStep):
+    """
+    Multiple steps run in parallel
+    """
+
+    def __init__(self, steps: List[GroupStep]):
+        super().__init__()
+        self.steps = steps
+
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        finished = False
+        for step in self.steps:
+            if step.perform(packet, drones, interface).finished:
+                finished = True
+        return StepResult(finished)
+
+    def render(self, renderer: RenderingManager):
+        for step in self.steps:
+            step.render(renderer)
+
+
+class CompositeStep(GroupStep):
+    """
+    Multiple steps run in a sequence
+    """
+
+    def __init__(self, steps: List[GroupStep]):
+        super().__init__()
+        self.steps = steps
+        self.current_step_index = 0
+
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        step = self.steps[self.current_step_index]
+        if step.perform(packet, drones, interface).finished:
+            self.current_step_index += 1
+        return StepResult(self.current_step_index == len(self.steps))
 
 
 class DroneListStep(GroupStep):
@@ -44,7 +87,7 @@ class DroneListStep(GroupStep):
     """
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
-        self.step(packet, drones)
+        self.step(packet, [drone for drone in drones if drone.id in self.target_indexes])
         return super().perform(packet, drones, interface)
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
@@ -59,7 +102,8 @@ class PerDroneStep(GroupStep):
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         for index, drone in enumerate(drones):
-            self.step(packet, drone, index)
+            if drone.id in self.target_indexes:
+                self.step(packet, drone, index)
         return super().perform(packet, drones, interface)
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
@@ -96,9 +140,10 @@ class StateSettingStep(GroupStep):
         ball.position = vector3_to_vec3(packet.game_ball.physics.location)
         ball.velocity = vector3_to_vec3(packet.game_ball.physics.velocity)
         ball.angular_velocity = vector3_to_vec3(packet.game_ball.physics.angular_velocity)
+        target_drones = [drone for drone in drones if drone.id in self.target_indexes]
 
         self.set_ball_state(ball)
-        self.set_drone_states(drones)
+        self.set_drone_states(target_drones)
 
         state = GameState(cars={})
         state.ball = BallState(
@@ -108,7 +153,7 @@ class StateSettingStep(GroupStep):
                 angular_velocity=vec3_to_vector3(ball.angular_velocity)
             )
         )
-        for drone in drones:
+        for drone in target_drones:
             state.cars[drone.id] = CarState(
                 Physics(
                     location=vec3_to_vector3(drone.position),

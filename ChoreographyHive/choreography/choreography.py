@@ -19,10 +19,17 @@ class Choreography:
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         if self.sequence_index < len(self.sequence):
             step = self.sequence[self.sequence_index]
+
             time = packet.game_info.seconds_elapsed
             step.dt = time - self.last_frame_time
             self.last_frame_time = time
+
             result = step.perform(packet, drones, self.game_interface)
+
+            self.game_interface.renderer.begin_rendering()
+            step.render(self.game_interface.renderer)
+            self.game_interface.renderer.end_rendering()
+
             if result.finished:
                 self.sequence_index += 1
         else:
