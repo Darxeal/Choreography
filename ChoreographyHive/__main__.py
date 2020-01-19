@@ -94,7 +94,7 @@ class RLBotChoreography:
             try:
                 my_hivemind.start() # Loop only quits on STOP command.
             except Exception as e:
-                print(e)
+                print(f'[ERROR]: {e}')
 
             # Reloads hivemind for new changes to take place.
             # reload(sys.modules[self.choreo_obj.__module__])
