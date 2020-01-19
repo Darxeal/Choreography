@@ -129,6 +129,20 @@ class ExampleChoreography(Choreography):
         appearances[3] = 'test.cfg'
         return appearances
 
+    @staticmethod
+    def get_teams(num_bots: int) -> List[int]:
+        # Every other bot is on the orange team.
+        teams = [0] * num_bots
+        teams[::2] = [1 for _ in teams[::2]]
+        return teams
+
+    @staticmethod
+    def get_names(num_bots: int) -> List[str]:
+        # Index 3 gets a special name, other use index.
+        names = [str(i) for i in range(num_bots)]
+        names[3] = 'Calculator'
+        return names
+
     def __init__(self, game_interface: GameInterface):
         super().__init__(game_interface)
 

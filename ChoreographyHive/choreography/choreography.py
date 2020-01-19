@@ -40,8 +40,18 @@ class Choreography:
 
     @staticmethod
     def get_num_bots() -> int:
-        raise NotImplementedError
+        # Default value is managed in __main__.py
+        # This way allows you to set it in the GUI.
+        raise NotImplementedError 
 
     @staticmethod
     def get_appearances(num_bots: int) -> List[str]:
-        raise NotImplementedError
+        return ['default.cfg'] * num_bots
+
+    @staticmethod
+    def get_teams(num_bots: int) -> List[int]:
+        return [0] * num_bots
+
+    @staticmethod
+    def get_names(num_bots: int) -> List[str]:
+        return [str(i) for i in range(num_bots)]
