@@ -6,7 +6,8 @@ from rlbot.utils.structures.game_interface import GameInterface
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
+from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, \
+    StateSettingStep, TwoTickStateSetStep
 
 from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm, normalize, \
     xy, axis_to_rotation, euler_to_rotation
@@ -317,3 +318,80 @@ class ForwardThenHelix(PerDroneStep):
             drone.hover.up = normalize(drone.position)
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
+
+# F(X,Y) GRAPHER
+
+class GraphTest(Choreography):
+
+    @staticmethod
+    def get_num_bots():
+        return 64
+
+    def __init__(self, game_interface: GameInterface):
+        super().__init__(game_interface)
+
+    def generate_sequence(self):
+        self.sequence = [
+            YeetTheBallOutOfTheUniverse(),
+            Grid(),
+            BaseGraph(),
+            Parabola(),
+            BaseGraph(),
+            CosSin(),
+            BaseGraph(),
+            Wave()
+        ]
+
+class Grid(TwoTickStateSetStep):
+    spacing = 200
+
+    def set_drone_states(self, drones: List[Drone]):
+        s = int( math.sqrt( len(drones) ) ) # Side length
+        for i, drone in enumerate(drones):
+            # Get grid pos.
+            x = (i //s) - (s-1)/2
+            y = (i % s) - (s-1)/2
+            drone.position = vec3(x * self.spacing, y * self.spacing, 800) # 800 is base height
+            drone.orientation = euler_to_rotation(vec3(math.pi/2, 0, 0))
+            drone.velocity = vec3(0, 0, 100)
+            drone.angular_velocity = vec3(0, 0, 0)
+
+class BaseGraph(DroneListStep):
+    duration = math.pi
+    rotation_speed = 0
+    spacing = 200
+
+    def func(self, x, y):
+        return 0
+
+    def step(self, packet: GameTickPacket, drones: List[Drone]):
+        s = int( math.sqrt( len(drones) ) ) # Side length
+        for i, drone in enumerate(drones):
+            # Get grid pos.
+            x = (i //s) - (s-1)/2
+            y = (i % s) - (s-1)/2
+            # Get height from func.
+            z = 800 + self.func(x, y) # 800 is base height
+
+            drone.hover.target = vec3(x * self.spacing, y * self.spacing, z)
+            rot = rotation(self.rotation_speed * self.time_since_start * 2)
+            drone.hover.up = vec3(dot(rot, vec2(1, 0)))
+            drone.hover.step(self.dt)
+            drone.controls = drone.hover.controls
+
+class Parabola(BaseGraph):
+    
+    def func(self, x, y):
+        return 40*(x**2 + y**2) - 200
+
+class CosSin(BaseGraph):
+
+    def func(self, x, y):
+        return 250*(math.cos(x) + math.sin(y))
+
+class Wave(BaseGraph):
+    duration = 4*math.pi
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 150*(math.sin(x/2+t))
