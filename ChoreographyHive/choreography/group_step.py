@@ -126,3 +126,42 @@ class StateSettingStep(GroupStep):
 
     def set_drone_states(self, drones: List[Drone]):
         pass
+
+
+# Use this when trying to state set >48 drones.
+class TwoTickStateSetStep(StateSettingStep):
+    tick = 0 # Counting ticks
+
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        self.tick += 1
+        self.finished = self.tick >= 2
+
+        ball = Ball()
+        ball.position = vector3_to_vec3(packet.game_ball.physics.location)
+        ball.velocity = vector3_to_vec3(packet.game_ball.physics.velocity)
+        ball.angular_velocity = vector3_to_vec3(packet.game_ball.physics.angular_velocity)
+
+        self.set_ball_state(ball)
+        self.set_drone_states(drones)
+
+        state = GameState(cars={})
+        state.ball = BallState(
+            physics=Physics(
+                location=vec3_to_vector3(ball.position),
+                velocity=vec3_to_vector3(ball.velocity),
+                angular_velocity=vec3_to_vector3(ball.angular_velocity)
+            )
+        )
+        # State setting only half of the drones per tick
+        for drone in drones[self.tick%2::2]:
+            state.cars[drone.id] = CarState(
+                Physics(
+                    location=vec3_to_vector3(drone.position),
+                    velocity=vec3_to_vector3(drone.velocity),
+                    angular_velocity=vec3_to_vector3(drone.angular_velocity),
+                    rotation=mat3_to_rotator(drone.orientation)
+                ),
+                drone.boost
+            )
+        interface.set_game_state(state)
+        return super().perform(packet, drones, interface)
