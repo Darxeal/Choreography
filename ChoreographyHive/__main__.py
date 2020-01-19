@@ -1,19 +1,9 @@
-"""RLBotChoreography
-
-Usage:
-    ChoreographyHive [--bot-folder=<folder>]
-    ChoreographyHive (-h | --help)
-
-Options:
-    -h --help               Shows this help message.
-    --bot-folder=<folder>   Searches this folder for bot configs to use for names and appearances [default: .].
-"""
+"""RLBotChoreography"""
 import copy
 import os
 import sys
 import inspect
 import time
-from docopt import docopt
 from importlib import reload, import_module
 from queue import Queue 
 from threading import Thread 
@@ -21,7 +11,8 @@ from os.path import dirname, basename, isfile, join
 import glob
 
 from rlbot.matchconfig.conversions import parse_match_config
-from rlbot.parsing.agent_config_parser import load_bot_appearance
+from rlbot.parsing.agent_config_parser import load_bot_appearance, create_looks_configurations
+from rlbot.parsing.bot_config_bundle import get_bot_config_bundle
 from rlbot.parsing.directory_scanner import scan_directory_for_bot_configs
 from rlbot.parsing.rlbot_config_parser import create_bot_config_layout
 from rlbot.setup_manager import SetupManager
@@ -32,8 +23,9 @@ from queue_commands import QCommand
 from choreography.choreography import Choreography
 
 # TODO:
-# - Do bot-folder from inside the GUI
 # - Prettify GUI
+# - Specify names inside choreo
+
 class RLBotChoreography:
 
     def __init__(self):
@@ -47,32 +39,42 @@ class RLBotChoreography:
 
 
     def setup_match(self):
-        # TODO This should be replaced?
-        arguments = docopt(__doc__)
-
-        bot_directory = arguments['--bot-folder']
-        bundles = scan_directory_for_bot_configs(bot_directory)
-
         # Set up RLBot.cfg
         framework_config = create_bot_config_layout()
         config_location = os.path.join(os.path.dirname(__file__), 'rlbot.cfg')
         framework_config.parse_file(config_location, max_index=MAX_PLAYERS)
         match_config = parse_match_config(framework_config, config_location, {}, {})
 
-        looks_configs = {idx: bundle.get_looks_config() for idx, bundle in enumerate(bundles)}
-        names = [bundle.name for bundle in bundles]
+        try:
+            # Gets appearance list from choreo.
+            appearances = self.choreo_obj.get_appearances(self.min_bots)
+            # Checks that it is the correct length.
+            if len(appearances) != self.min_bots:
+                print('[RLBotChoreography]: Number of appearances does not match number of bots.')
+                raise AssertionError
+            
+        except (NotImplementedError, AssertionError):
+            print('[RLBotChoreography]: Using default appearances.')
+            appearances = ['default.cfg'] * self.min_bots
 
+        # Loads appearances.
+        looks_configs = {
+                idx: create_looks_configurations().parse_file(os.path.abspath('./ChoreographyHive/appearances/' + file_name))
+                for idx, file_name in enumerate(appearances)
+            }
+        # Sets names of each.
+        names = ['Choreo' for _ in appearances]
+
+        # rlbot.cfg specifies only one bot, 
+        # so we have to copy each and assign correct appearance.
         player_config = match_config.player_configs[0]
         match_config.player_configs.clear()
-        for i in range(max(len(bundles), self.min_bots)):
+        for i in range(self.min_bots):
             copied = copy.copy(player_config)
-            if i < len(bundles):
-                copied.name = names[i]
-                # If you want to override bot appearances to get a certain visual effect, e.g. with
-                # specific boost colors, this is a good place to do it.
-                copied.loadout_config = load_bot_appearance(looks_configs[i], 0)
+            copied.name = names[i]
+            copied.loadout_config = load_bot_appearance(looks_configs[i], 0)
             match_config.player_configs.append(copied)
-
+        
         manager = SetupManager()
         manager.load_match_config(match_config, {})
         manager.connect_to_game()

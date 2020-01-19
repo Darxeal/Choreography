@@ -39,5 +39,9 @@ class Choreography:
         pass
 
     @staticmethod
-    def get_num_bots():
+    def get_num_bots() -> int:
+        raise NotImplementedError
+
+    @staticmethod
+    def get_appearances(num_bots: int) -> List[str]:
         raise NotImplementedError
