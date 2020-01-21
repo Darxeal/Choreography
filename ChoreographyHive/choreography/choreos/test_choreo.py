@@ -1,5 +1,6 @@
 import math
 from typing import List
+import numpy.random as rand
 
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
@@ -395,3 +396,55 @@ class Wave(BaseGraph):
     def func(self, x, y):
         t = self.time_since_start
         return 150*(math.sin(x/2+t))
+
+# SNAKE
+class Snake(Choreography):
+    @staticmethod
+    def get_num_bots():
+        return 64
+
+    def __init__(self, game_interface: GameInterface):
+        super().__init__(game_interface)
+
+    def generate_sequence(self):
+        self.sequence = [
+            MakeSnake(),
+            RandomBallLocation(),
+            SnakeGame()
+        ]
+    
+class MakeSnake(TwoTickStateSetStep):
+    start_pos = vec3(0, 0, 18)
+    angle_inc = 0.2
+    spacing = 150
+
+    def set_drone_states(self, drones: List[Drone]):
+        angle = 0
+        next_pos = self.start_pos
+        for i, drone in enumerate(drones):
+            drone.position = next_pos
+            drone.orientation = euler_to_rotation(vec3(0, angle, 0))
+            drone.velocity = vec3(0, 0, 0)
+                
+            angle += self.angle_inc
+            rot = rotation(angle)
+            next_pos += vec3(dot(rot, vec2(self.spacing, 0)))
+
+class RandomBallLocation(StateSettingStep):
+    max_x = 2000
+    max_y = 3000
+
+    def set_ball_state(self, ball):
+        x = self.max_x * (2 * rand.rand() - 1)
+        y = self.max_y * (2 * rand.rand() - 1)
+        ball.position = vec3(x, y, 300)
+        ball.velocity = vec3(0, 0, 0)
+        ball.angular_velocity = vec3(0, 0, 0)
+
+class SnakeGame(DroneListStep):
+    # TODO:
+    # first bot follows human
+    # all other follow the drone one prior
+    # when ball is moved, teleport it somewhere else
+    # make snake larger
+    pass
