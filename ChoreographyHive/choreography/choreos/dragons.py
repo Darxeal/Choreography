@@ -82,7 +82,7 @@ class Dragon(StateSettingStep):
             facing_direction = direction(pos_behind, pos)
             target_left = cross(facing_direction, direction(pos, pos_ahead))
             target_up = cross(target_left, facing_direction)
-            up = drone.up() + target_up * 1.5  # + vec3(0, 0, 0.01)
+            up = drone.up() + target_up * 0.9 + vec3(0, 0, 0.1)
             target_orientation = look_at(facing_direction, up)
 
             drone.position = pos
@@ -120,9 +120,6 @@ class DragonsChoreography(Choreography):
     @staticmethod
     def get_num_bots():
         return 10
-
-    def __init__(self, game_interface: GameInterface):
-        super().__init__(game_interface)
 
     def generate_sequence(self):
         self.sequence = [

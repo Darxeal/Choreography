@@ -42,7 +42,8 @@ class BezierPathEditor:
         renderer.draw_line_3d(point + direction * 200, point - direction * 200, renderer.lime())
 
     def main(self):
-        points = BLUE_DRAGON_PATH.points
+        main_path = BLUE_DRAGON_PATH
+        other_path = PURPLE_DRAGON_PATH
         selected_point_index = 0
 
         while True:
@@ -50,6 +51,9 @@ class BezierPathEditor:
             self.game_interface.update_live_data_packet(packet)
             renderer = self.game_interface.renderer
             renderer.begin_rendering()
+
+            points = main_path.points
+            selected_point_index = min(selected_point_index, len(points) - 1)
 
             # select previous
             if keyboard.is_pressed("-") and selected_point_index > 0:
@@ -106,10 +110,21 @@ class BezierPathEditor:
             # dump points into file
             elif keyboard.is_pressed("enter"):
                 with open("points.txt", "w") as file:
-                    for point in points:
+                    file.write("\nBLUE DRAGON\n")
+                    for point in BLUE_DRAGON_PATH.points:
                         file.write(f'vec3({int(point[0])}, {int(point[1])}, {int(point[2])}),\n')
+                    file.write("\nPURPLE DRAGON\n")
+                    for point in BLUE_DRAGON_PATH.points:
+                        file.write(f'vec3({int(point[0])}, {int(point[1])}, {int(point[2])}),\n')
+
                 print("dumped path to points.txt")
                 time.sleep(0.2)
+
+            # switch between paths
+            elif keyboard.is_pressed("9"):
+                main_path, other_path = other_path, main_path
+                time.sleep(0.2)
+                continue
 
             # render path
             path = BezierPath(points)
@@ -124,7 +139,7 @@ class BezierPathEditor:
 
             # render the other path for reference
             # renderer.begin_rendering("reference")
-            renderer.draw_polyline_3d(PURPLE_DRAGON_PATH.to_points(70), renderer.create_color(255, 130, 150, 255))
+            renderer.draw_polyline_3d(other_path.to_points(70), renderer.create_color(255, 130, 150, 255))
             renderer.end_rendering()
 
             time.sleep(0.02)
