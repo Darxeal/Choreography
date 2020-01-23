@@ -397,7 +397,8 @@ class Wave(BaseGraph):
         t = self.time_since_start
         return 150*(math.sin(x/2+t))
 
-# SNAKE
+# HARDCODED CLONES
+
 class Clones(Choreography):
     @staticmethod
     def get_num_bots():
