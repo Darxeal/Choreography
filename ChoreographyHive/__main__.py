@@ -5,8 +5,8 @@ import sys
 import inspect
 import time
 from importlib import reload, import_module
-from queue import Queue 
-from threading import Thread 
+from queue import Queue
+from threading import Thread
 from os.path import dirname, basename, isfile, join
 import glob
 
@@ -22,6 +22,7 @@ import hivemind
 from queue_commands import QCommand
 from choreography.choreography import Choreography
 
+
 # TODO:
 # - Prettify GUI
 # - Specify names inside choreo
@@ -31,12 +32,11 @@ class RLBotChoreography:
     def __init__(self):
         # Runs GUI and Hivemind on two different threads.
         q = Queue()
-        thread1 = Thread(target=self.run_gui, args=(q, ))
-        thread1.start()  
-        thread2 = Thread(target=self.run_RLBotChoreography, args=(q, ))
+        thread1 = Thread(target=self.run_gui, args=(q,))
+        thread1.start()
+        thread2 = Thread(target=self.run_RLBotChoreography, args=(q,))
         thread2.start()
         q.join()
-
 
     def setup_match(self):
         # Set up RLBot.cfg
@@ -52,16 +52,17 @@ class RLBotChoreography:
             if len(appearances) != self.min_bots:
                 print('[RLBotChoreography]: Number of appearances does not match number of bots.')
                 raise AssertionError
-            
+
         except (NotImplementedError, AssertionError):
             print('[RLBotChoreography]: Using default appearances.')
             appearances = ['default.cfg'] * self.min_bots
 
         # Loads appearances.
         looks_configs = {
-                idx: create_looks_configurations().parse_file(os.path.abspath('./ChoreographyHive/appearances/' + file_name))
-                for idx, file_name in enumerate(appearances)
-            }
+            idx: create_looks_configurations().parse_file(
+                os.path.abspath('./ChoreographyHive/appearances/' + file_name))
+            for idx, file_name in enumerate(appearances)
+        }
         # Sets names of each.
         names = ['Choreo' for _ in appearances]
 
@@ -74,12 +75,11 @@ class RLBotChoreography:
             copied.name = names[i]
             copied.loadout_config = load_bot_appearance(looks_configs[i], 0)
             match_config.player_configs.append(copied)
-        
+
         manager = SetupManager()
         manager.load_match_config(match_config, {})
         manager.connect_to_game()
         manager.start_match()
-
 
     def run_RLBotChoreography(self, queue):
         """
@@ -88,13 +88,13 @@ class RLBotChoreography:
         # Waits until a START command is received.
         while queue.get() != QCommand.START:
             continue
-        
+
         self.setup_match()
 
         while True:
             my_hivemind = hivemind.Hivemind(queue, self.choreo_obj)
             try:
-                my_hivemind.start() # Loop only quits on STOP command.
+                my_hivemind.start()  # Loop only quits on STOP command.
             except Exception as e:
                 print(f'[ERROR]: {e}')
 
@@ -108,9 +108,8 @@ class RLBotChoreography:
                 self.setup_match()
             elif command == QCommand.EXIT:
                 break
-        
-        exit() # Clean exit.
 
+        exit()  # Clean exit.
 
     def run_gui(self, queue):
         """
@@ -156,12 +155,12 @@ class RLBotChoreography:
             queue.put(QCommand.START)
 
             # Removes the button so we cannot start again.
-            button_start.destroy() 
+            button_start.destroy()
 
             # Hive reset button.
             button_reload_hive = tk.Button(frame, text="↻ Hivemind", command=reload_hive)
             button_reload_hive.pack()
-                
+
             # All reset button.
             button_reload_all = tk.Button(frame, text="↻ All", command=reload_all)
             button_reload_all.pack()
@@ -204,7 +203,7 @@ class RLBotChoreography:
             queue.put(QCommand.ALL)
 
         # TODO Make GUI look better.
-        import tkinter as tk  
+        import tkinter as tk
 
         root = tk.Tk()
         frame = tk.Frame(root)
@@ -229,7 +228,7 @@ class RLBotChoreography:
         entry_num_bots = tk.Entry(frame)
         entry_num_bots.insert(0, 10)
         entry_num_bots.pack()
-        
+
         # This is here just to make sure everything is set up by default.
         choreo_selected(menuvar.get())
 
