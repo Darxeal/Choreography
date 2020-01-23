@@ -1,8 +1,10 @@
 import math
 from typing import List
+from dataclasses import dataclass
 
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
+from rlbot.agents.base_agent import SimpleControllerState
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
@@ -395,3 +397,76 @@ class Wave(BaseGraph):
     def func(self, x, y):
         t = self.time_since_start
         return 150*(math.sin(x/2+t))
+
+# SNAKE
+class Clones(Choreography):
+    @staticmethod
+    def get_num_bots():
+        return 10
+
+    def __init__(self, game_interface: GameInterface):
+        super().__init__(game_interface)
+
+    def generate_sequence(self):
+        a = SimpleControllerState()
+        a.throttle = True
+
+        b = SimpleControllerState()
+        b.jump = True
+        b.pitch = 1.0
+
+        movements = [
+            MovementInInterval(0.0, 3.0, a),
+            MovementInInterval(3.0, 4.0, b)
+        ]
+        GoForwardAndThenDoAJumpOrSomething = HardcodedMovement(movements)
+
+        self.sequence = [
+            YeetTheBallOutOfTheUniverse(),
+            StackThemUp(),
+            GoForwardAndThenDoAJumpOrSomething
+        ]
+
+class StackThemUp(StateSettingStep):
+    pos = vec3(0, -2000, 20)
+    height = 100
+
+    def set_drone_states(self, drones: List[Drone]):
+        for i, drone in enumerate(drones):
+            drone.position = self.pos
+            drone.position[2] += i * self.height
+            drone.orientation = euler_to_rotation(vec3(0, math.pi/2, 0))
+            drone.velocity = vec3(0, 0, 0)
+            drone.angular_velocity = vec3(0, 0, 0)
+
+@dataclass
+class MovementInInterval:
+    start : float
+    end : float
+    controls : SimpleControllerState
+
+# Pass in a list of MovementInIntervals and it automatically completes the moves with each drone.
+# If you have the temptation to use clone_delay = 0, use BlindBehaviourStep instead.
+class HardcodedMovement(PerDroneStep):
+
+    def __init__(self, movements : List[MovementInInterval], clone_delay : float = 1.0):
+        self.movements = movements
+        self.clone_delay = clone_delay
+        super().__init__()
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        delay = index * self.clone_delay
+        for movement in self.movements:
+            if movement.start + delay < self.time_since_start < movement.end + delay:
+                # Convert SimpleControllerState to Input
+                drone.controls.throttle = movement.controls.throttle
+                drone.controls.steer = movement.controls.steer
+                drone.controls.pitch = movement.controls.pitch
+                drone.controls.yaw = movement.controls.yaw
+                drone.controls.roll = movement.controls.roll
+                drone.controls.jump = movement.controls.jump
+                drone.controls.boost = movement.controls.boost
+                drone.controls.handbrake = movement.controls.handbrake
+
+        if index == packet.num_cars - 1:
+            self.finished = self.time_since_start > delay + self.movements[-1].end
