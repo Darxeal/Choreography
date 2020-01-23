@@ -43,7 +43,8 @@ class RLBotChoreography:
         config_location = os.path.join(os.path.dirname(__file__), 'rlbot.cfg')
         framework_config.parse_file(config_location, max_index=MAX_PLAYERS)
         match_config = parse_match_config(framework_config, config_location, {}, {})
-        
+        match_config.game_map = self.choreo_obj.map_name
+
         # The three blocks of code below are basically identical.
         # TODO Make them into a function?
 
@@ -73,9 +74,10 @@ class RLBotChoreography:
 
         # Loads appearances.
         looks_configs = {
-                idx: create_looks_configurations().parse_file(os.path.abspath('./ChoreographyHive/appearances/' + file_name))
-                for idx, file_name in enumerate(appearances)
-            }
+            idx: create_looks_configurations().parse_file(
+                os.path.abspath('./ChoreographyHive/appearances/' + file_name))
+            for idx, file_name in enumerate(appearances)
+        }
 
         # rlbot.cfg specifies only one bot, 
         # so we have to copy each and assign correct appearance.
@@ -239,7 +241,7 @@ class RLBotChoreography:
 
         # Number of bots entry box.
         entry_num_bots = tk.Entry(frame)
-        entry_num_bots.insert(0, 10) # 10 is default.
+        entry_num_bots.insert(0, 10)  # 10 is default.
         entry_num_bots.pack()
 
         # This is here just to make sure everything is set up by default.

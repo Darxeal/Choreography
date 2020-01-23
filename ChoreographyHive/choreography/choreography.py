@@ -8,6 +8,7 @@ from choreography.group_step import GroupStep
 
 
 class Choreography:
+    map_name = "Mannfield_Night"
 
     def __init__(self, game_interface: GameInterface):
         self.game_interface = game_interface
@@ -42,7 +43,7 @@ class Choreography:
     def get_num_bots() -> int:
         # Default value is managed in __main__.py
         # This way allows you to set it in the GUI.
-        raise NotImplementedError 
+        raise NotImplementedError
 
     @staticmethod
     def get_appearances(num_bots: int) -> List[str]:
