@@ -42,7 +42,7 @@ class BezierPathEditor:
         renderer.draw_line_3d(point + direction * 200, point - direction * 200, renderer.lime())
 
     def main(self):
-        points = PURPLE_DRAGON_PATH.points
+        points = BLUE_DRAGON_PATH.points
         selected_point_index = 0
 
         while True:
@@ -124,7 +124,7 @@ class BezierPathEditor:
 
             # render the other path for reference
             # renderer.begin_rendering("reference")
-            renderer.draw_polyline_3d(BLUE_DRAGON_PATH.to_points(70), renderer.create_color(255, 130, 150, 255))
+            renderer.draw_polyline_3d(PURPLE_DRAGON_PATH.to_points(70), renderer.create_color(255, 130, 150, 255))
             renderer.end_rendering()
 
             time.sleep(0.02)

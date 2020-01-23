@@ -1,20 +1,14 @@
-import math
 from typing import List
 
 from rlbot.utils.rendering.rendering_manager import RenderingManager
-from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
+from rlutilities.linear_algebra import vec3, dot, look_at, xy, axis_to_rotation, rotation_to_axis, cross
+from rlutilities.simulation import Ball, Input, Curve
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep, \
-    ParallelStep
-
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, normalize, xy, angle_between, \
-    axis_to_rotation, norm, clip, cross
-from rlutilities.simulation import Ball, Input, Curve
-
-from choreography.utils import BezierPath, direction, distance
+from choreography.group_step import BlindBehaviorStep, StateSettingStep, ParallelStep
+from choreography.utils import BezierPath, direction
 
 
 class YeetTheBallOutOfTheUniverse(StateSettingStep):
@@ -25,20 +19,28 @@ class YeetTheBallOutOfTheUniverse(StateSettingStep):
 
 
 BLUE_DRAGON_PATH = BezierPath([
-    vec3(1060.62, 5000, 597.84),
-    vec3(1060.62, 4535.96, 597.84),
-    vec3(760.90, 3940.71, 597.84),
-    vec3(25.88, 3451.79, 682.14),
-    vec3(-80.05, 2844.85, 1011.74),
-    vec3(658.04, 2427.09, 778.38),
-    vec3(1537.42, 2140.13, 276.30),
+    vec3(1060, 5110, 597),
+    vec3(1060, 4657, 597),
+    vec3(760, 3940, 597),
+    vec3(25, 3451, 682),
+    vec3(-80, 2844, 1011),
+    vec3(658, 2427, 778),
+    vec3(1537, 2140, 276),
     vec3(1600, 1500, 200),
-    vec3(0, 0, 500),
+    vec3(1040, 750, 350),
     vec3(-1000, -1000, 500),
-    vec3(0, -2000, 500),
-    vec3(1000, -3000, 500),
+    vec3(1000, -3000, 320),
     vec3(0, -4000, 500),
-    vec3(-1000, -5000, 500),
+    vec3(-1470, -3760, 500),
+    vec3(-1630, -3000, 590),
+    vec3(-1600, -2090, 510),
+    vec3(-1590, -1900, 870),
+    vec3(-1580, -2300, 1190),
+    vec3(-1570, -2700, 770),
+    vec3(-1620, -2380, 500),
+    vec3(-1580, -960, 640),
+    vec3(-1540, 460, 780),
+    vec3(-1500, 1880, 920),
 ])
 
 PURPLE_DRAGON_PATH = BezierPath([
@@ -63,28 +65,33 @@ PURPLE_DRAGON_PATH = BezierPath([
 
 
 class Dragon(StateSettingStep):
-    duration = 10.0
+    duration = 15.0
     delay = 300
     curve: Curve = None
 
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
-            p = self.time_since_start / self.duration * self.curve.length - self.delay * (
-                    drone.id - self.target_indexes[0])
-            p = self.curve.length - p
+            t = self.time_since_start / self.duration * self.curve.length
+            t -= self.delay * (drone.id - self.target_indexes[0])
+            t = self.curve.length - t
 
-            dir = direction(drone.position, self.curve.point_at(p - 10))
+            pos = self.curve.point_at(t)
+            pos_ahead = self.curve.point_at(t - 500)
+            pos_behind = self.curve.point_at(t + 100)
 
-            drone.position = self.curve.point_at(p)
-            drone.velocity = dir * 500
+            facing_direction = direction(pos_behind, pos)
+            target_left = cross(facing_direction, direction(pos, pos_ahead))
+            target_up = cross(target_left, facing_direction)
+            up = drone.up() + target_up * 1.5  # + vec3(0, 0, 0.01)
+            target_orientation = look_at(facing_direction, up)
+
+            drone.position = pos
+            drone.velocity = facing_direction * (self.curve.length / self.duration)
             drone.angular_velocity = vec3(0, 0, 0)
+            drone.orientation = target_orientation
 
-            drone.orientation = look_at(dir, vec3(0, 0, 1))
-            angle = dot(xy(drone.left()), xy(self.curve.tangent_at(p - 100))) * -5
-            drone.orientation = dot(axis_to_rotation(drone.forward() * angle), drone.orientation)
-
-    def render(self, renderer: RenderingManager):
-        renderer.draw_polyline_3d(self.curve.points[::5], renderer.white())
+    # def render(self, renderer: RenderingManager):
+    #     renderer.draw_polyline_3d(self.curve.points[::5], renderer.white())
 
 
 class BlueDragon(Dragon):
