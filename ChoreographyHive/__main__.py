@@ -87,7 +87,7 @@ class RLBotChoreography:
             copied = copy.copy(player_config)
             copied.name = names[i]
             copied.team = teams[i]
-            copied.loadout_config = load_bot_appearance(looks_configs[i], 0)
+            copied.loadout_config = load_bot_appearance(looks_configs[i], copied.team)
             match_config.player_configs.append(copied)
 
         manager = SetupManager()

@@ -1,3 +1,5 @@
+from math import pi
+
 from rlbot.matchconfig.match_config import MutatorConfig, MatchConfig, PlayerConfig
 from rlbot.setup_manager import SetupManager
 from rlbot.utils.rendering.rendering_manager import RenderingManager
@@ -8,7 +10,7 @@ import keyboard
 from choreography.choreos.dragons import PURPLE_DRAGON_PATH, BLUE_DRAGON_PATH, BezierPath
 from rlutilities.simulation import Curve
 
-from rlutilities.linear_algebra import vec3
+from rlutilities.linear_algebra import vec3, dot, axis_to_rotation
 
 
 class BezierPathEditor:
@@ -114,11 +116,13 @@ class BezierPathEditor:
                     for point in BLUE_DRAGON_PATH.points:
                         file.write(f'vec3({int(point[0])}, {int(point[1])}, {int(point[2])}),\n')
                     file.write("\nPURPLE DRAGON\n")
-                    for point in BLUE_DRAGON_PATH.points:
+                    for point in PURPLE_DRAGON_PATH.points:
                         file.write(f'vec3({int(point[0])}, {int(point[1])}, {int(point[2])}),\n')
 
                 print("dumped path to points.txt")
+                renderer.clear_all_touched_render_groups()
                 time.sleep(0.2)
+                exit()
 
             # switch between paths
             elif keyboard.is_pressed("9"):
@@ -129,7 +133,13 @@ class BezierPathEditor:
             # render path
             path = BezierPath(points)
             curve = Curve(path.to_points(300))
+            # t = curve.find_nearest(points[min(selected_point_index, len(points) - 2)])
+            # rendered_points = [curve.point_at(t + i) for i in range(-5000, 5000, 200)]
             renderer.draw_polyline_3d(curve.points, renderer.white())
+
+            for i in range(30):
+                pos = curve.point_at((1 - i / 30) * curve.length)
+                renderer.draw_string_3d(pos, 1, 1, str(i), renderer.white())
 
             for i, point in enumerate(points):
                 selected = i == selected_point_index
@@ -137,9 +147,29 @@ class BezierPathEditor:
                 size = 6 if selected else 4
                 renderer.draw_rect_3d(point, size, size, True, color, True)
 
+            renderer.draw_string_2d(10, 10, 1, 1, str(int(curve.length)), renderer.yellow())
+            renderer.end_rendering()
+
+            renderer.begin_rendering("reference")
+            blue = renderer.create_color(255, 150, 180, 255)
+
             # render the other path for reference
-            # renderer.begin_rendering("reference")
-            renderer.draw_polyline_3d(other_path.to_points(70), renderer.create_color(255, 130, 150, 255))
+            path = BezierPath(other_path.points)
+            curve2 = Curve(path.to_points(300))
+            # rendered_points = [curve2.point_at(curve2.length - curve.length + t + i) for i in range(-5000, 5000, 200)]
+            renderer.draw_polyline_3d(curve2.points, blue)
+
+            for i in range(30):
+                pos = curve2.point_at((1 - i / 30) * curve2.length)
+                renderer.draw_string_3d(pos, 1, 1, str(i), renderer.blue())
+
+            renderer.draw_string_2d(10, 30, 1, 1, str(int(curve2.length)), renderer.yellow())
+            renderer.end_rendering()
+
+            # render the rings of fire orbit for reference
+            renderer.begin_rendering("orbit")
+            points = [dot(axis_to_rotation(vec3(0, 0, i / 30 * pi * 2)), vec3(2200, 0, 1400)) for i in range(30)]
+            renderer.draw_polyline_3d(points, renderer.orange())
             renderer.end_rendering()
 
             time.sleep(0.02)
