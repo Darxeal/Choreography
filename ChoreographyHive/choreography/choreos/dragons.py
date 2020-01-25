@@ -9,11 +9,11 @@ from rlutilities.simulation import Ball, Input, Curve
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, StateSettingStep, ParallelStep, PerDroneStep
+from choreography.group_step import BlindBehaviorStep, StateSettingStep, ParallelStep, PerDroneStep, TwoTickStateSetStep
 from choreography.utils import BezierPath, direction
 
 
-class Setup(StateSettingStep):
+class RingsSetup(StateSettingStep):
     target_indexes = range(10, 40)
 
     def set_ball_state(self, ball: Ball):
@@ -31,6 +31,14 @@ class Setup(StateSettingStep):
             drone.velocity = vec3(0, 0, 0)
             drone.angular_velocity = vec3(0, 0, 0)
             drone.orientation = look_at(vec3(0, 1, 0) * sign, vec3(0, 0, 1))
+
+
+class HideDragons(StateSettingStep):
+    target_indexes = range(0, 10)
+
+    def set_drone_states(self, drones: List[Drone]):
+        for i, drone in enumerate(drones):
+            drone.position = vec3(i * 100, 6000, 0)
 
 
 BLUE_DRAGON_PATH = BezierPath([
@@ -217,9 +225,11 @@ PURPLE_DRAGON_PATH = BezierPath([
     vec3(20, -70, 2550),
 ])
 
+TOTAL_SPEED = 0.7
+
 
 class Dragon(StateSettingStep):
-    duration = 65.0
+    duration = 65.0 / TOTAL_SPEED
     distance_between_body_parts = 300
     curve: Curve = None
 
@@ -227,11 +237,15 @@ class Dragon(StateSettingStep):
         for drone in drones:
             t = self.time_since_start / self.duration * self.curve.length
             t -= self.distance_between_body_parts * (drone.id - self.target_indexes[0])
+
+            if t < 0:
+                continue
+
             t = self.curve.length - t
 
             pos = self.curve.point_at(t)
             pos_ahead = self.curve.point_at(t - 500)
-            pos_behind = self.curve.point_at(t + 30)
+            pos_behind = self.curve.point_at(t + 300)
 
             facing_direction = direction(pos_behind, pos)
             target_left = cross(facing_direction, direction(pos, pos_ahead))
@@ -239,7 +253,7 @@ class Dragon(StateSettingStep):
             up = drone.up() + target_up * 0.9 + vec3(0, 0, 0.1)
             target_orientation = look_at(facing_direction, up)
 
-            drone.position = pos
+            drone.position = pos_behind
             drone.velocity = facing_direction * (self.curve.length / self.duration)
             drone.angular_velocity = vec3(0, 0, 0)
             drone.orientation = target_orientation
@@ -263,8 +277,8 @@ class RingOfFire(PerDroneStep):
     rotation_radius = 2200
     height = 1400
     starting_rotation: float = None
-    rotation_start_delay = 20
-    rotation_speed = 0.45
+    rotation_start_delay = 20 / TOTAL_SPEED
+    rotation_speed = 0.45 * TOTAL_SPEED
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         rotation = self.starting_rotation + max(0,
@@ -303,6 +317,13 @@ class Boost(BlindBehaviorStep):
         controls.boost = True
 
 
+class Wait(BlindBehaviorStep):
+    duration = 5.0
+
+    def set_controls(self, controls: Input):
+        pass
+
+
 class DragonsChoreography(Choreography):
     map_name = "Mannfield_Night"
 
@@ -320,7 +341,9 @@ class DragonsChoreography(Choreography):
 
     def generate_sequence(self):
         self.sequence = [
-            Setup(),
+            Wait(),
+            HideDragons(),
+            RingsSetup(),
             ParallelStep([
                 BlueDragon(),
                 PurpleDragon(),
