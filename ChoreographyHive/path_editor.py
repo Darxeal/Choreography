@@ -132,10 +132,13 @@ class BezierPathEditor:
 
             # render path
             path = BezierPath(points)
-            curve = Curve(path.to_points(300))
+            curve = Curve(path.to_points(380))
             # t = curve.find_nearest(points[min(selected_point_index, len(points) - 2)])
             # rendered_points = [curve.point_at(t + i) for i in range(-5000, 5000, 200)]
             renderer.draw_polyline_3d(curve.points, renderer.white())
+
+            renderer.end_rendering()
+            renderer.begin_rendering("stuff")
 
             for i in range(30):
                 pos = curve.point_at((1 - i / 30) * curve.length)
@@ -155,7 +158,7 @@ class BezierPathEditor:
 
             # render the other path for reference
             path = BezierPath(other_path.points)
-            curve2 = Curve(path.to_points(300))
+            curve2 = Curve(path.to_points(380))
             # rendered_points = [curve2.point_at(curve2.length - curve.length + t + i) for i in range(-5000, 5000, 200)]
             renderer.draw_polyline_3d(curve2.points, blue)
 

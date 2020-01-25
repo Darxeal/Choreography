@@ -34,7 +34,7 @@ class Setup(StateSettingStep):
 
 
 BLUE_DRAGON_PATH = BezierPath([
-    vec3(1060, 5110, 487),
+    vec3(1060, 5110, 567),
     vec3(1060, 4657, 597),
     vec3(760, 3940, 597),
     vec3(25, 3451, 682),
@@ -54,17 +54,26 @@ BLUE_DRAGON_PATH = BezierPath([
     vec3(-980, -970, 1370),
     vec3(-510, -920, 890),
     vec3(-1180, -940, 490),
-    vec3(-2400, -1180, 650),
-    vec3(-2800, -2010, 810),
-    vec3(-2250, -2400, 970),
-    vec3(-1880, -1500, 1130),
+    vec3(-2380, -1430, 580),
+    vec3(-2560, -2115, 630),
+    vec3(-2040, -2400, 680),
+    vec3(-1665, -1860, 905),
+    vec3(-2232, -1460, 1017),
+    vec3(-2741, -1945, 1045),
+    vec3(-2271, -2430, 1073),
+    vec3(-1720, -1690, 1130),
+    vec3(-2035, -905, 1290),
     vec3(-2350, -120, 1450),
-    vec3(-2255, 1117, 1427),
+    vec3(-2215, 827, 1427),
     vec3(-1880, 1475, 1425),
-    vec3(-1430, 2130, 1660),
-    vec3(-1600, 2480, 1157),
-    vec3(-945, 1815, 1046),
-    vec3(230, 2190, 1415),
+    vec3(-945, 1815, 1246),
+    vec3(-507, 2222, 1230),
+    vec3(-498, 2841, 1222),
+    vec3(-887, 3239, 1233),
+    vec3(-1356, 2838, 1195),
+    vec3(-1324, 2255, 1288),
+    vec3(-110, 2270, 1355),
+    vec3(622, 2010, 1473),
     vec3(1630, 1500, 1360),
     vec3(2100, 570, 1420),
     vec3(1850, -1170, 1450),
@@ -76,8 +85,46 @@ BLUE_DRAGON_PATH = BezierPath([
     vec3(1810, -1180, 1420),
     vec3(240, -2170, 1430),
     vec3(-1330, -1720, 1400),
+    vec3(-2220, -420, 1385),
     vec3(-2230, 400, 1370),
-    vec3(-1140, 1910, 1340),
+    vec3(-1880, 760, 1340),
+    vec3(-1150, 170, 1310),
+    vec3(-410, -1080, 1330),
+    vec3(400, 80, 1400),
+    vec3(-320, 670, 1470),
+    vec3(-900, -110, 1540),
+    vec3(-760, -1140, 1610),
+    vec3(-1840, -1000, 1530),
+    vec3(-2030, 145, 1527),
+    vec3(-1850, 990, 1370),
+    vec3(-1380, 1575, 1395),
+    vec3(-950, 2077, 1392),
+    vec3(-350, 2028, 1436),
+    vec3(310, 2200, 1300),
+    vec3(1810, 1490, 1390),
+    vec3(2255, 660, 1420),
+    vec3(2360, -60, 1450),
+    vec3(2050, -1065, 1410),
+    vec3(1640, -1690, 1310),
+    vec3(1055, -1750, 1310),
+    vec3(587, -2010, 1300),
+    vec3(180, -1970, 1440),
+    vec3(-630, -1985, 1505),
+    vec3(-1180, -1927, 1477),
+    vec3(-1990, -1340, 1310),
+    vec3(-2370, 70, 1410),
+    vec3(-1210, 730, 1070),
+    vec3(-370, 700, 890),
+    vec3(310, 380, 630),
+    vec3(480, -10, 540),
+    vec3(70, -350, 530),
+    vec3(-220, 30, 690),
+    vec3(110, 280, 940),
+    vec3(280, -60, 1210),
+    vec3(90, -230, 1457),
+    vec3(-30, -20, 1705),
+    vec3(180, -40, 2130),
+    vec3(-130, 20, 3010),
 ])
 
 PURPLE_DRAGON_PATH = BezierPath([
@@ -127,13 +174,52 @@ PURPLE_DRAGON_PATH = BezierPath([
     vec3(-2230, -410, 1390),
     vec3(-1320, 1760, 1385),
     vec3(790, 2030, 1380),
-    vec3(2250, -110, 1410),
-    vec3(210, -2040, 1440),
+    vec3(2000, 940, 1395),
+    vec3(2090, -110, 1410),
+    vec3(1430, -20, 1440),
+    vec3(200, 970, 1340),
+    vec3(-1050, 10, 1410),
+    vec3(-490, -1090, 1480),
+    vec3(230, -480, 1550),
+    vec3(-250, 840, 1470),
+    vec3(-1170, 290, 1390),
+    vec3(-1620, 650, 1430),
+    vec3(-1710, 1650, 1380),
+    vec3(-1460, 1850, 1540),
+    vec3(-1173, 1786, 1581),
+    vec3(-887, 1722, 1462),
+    vec3(-606, 1893, 1203),
+    vec3(-335, 2255, 1205),
+    vec3(2, 2342, 1477),
+    vec3(865, 1900, 1415),
+    vec3(1700, 1370, 1420),
+    vec3(2015, 670, 1425),
+    vec3(2150, -30, 1430),
+    vec3(1550, -1470, 1310),
+    vec3(1095, -1955, 1475),
+    vec3(630, -1910, 1400),
+    vec3(130, -2150, 1515),
+    vec3(-300, -2050, 1410),
+    vec3(-740, -2005, 1380),
+    vec3(-1290, -1710, 1350),
+    vec3(-1780, -1070, 1440),
+    vec3(-2100, -570, 1490),
+    vec3(-2240, 190, 1440),
+    vec3(-1280, 1070, 1220),
+    vec3(-120, 1550, 1120),
+    vec3(550, 500, 800),
+    vec3(400, -130, 700),
+    vec3(-20, -300, 890),
+    vec3(-200, -47, 1235),
+    vec3(-40, 115, 1440),
+    vec3(130, -40, 1660),
+    vec3(-20, -140, 2150),
+    vec3(20, -70, 2550),
 ])
 
 
 class Dragon(StateSettingStep):
-    duration = 40.0
+    duration = 65.0
     distance_between_body_parts = 300
     curve: Curve = None
 
@@ -163,12 +249,12 @@ class Dragon(StateSettingStep):
 
 
 class BlueDragon(Dragon):
-    curve = Curve(BLUE_DRAGON_PATH.to_points(1000))
+    curve = Curve(BLUE_DRAGON_PATH.to_points(2000))
     target_indexes = range(0, 5)
 
 
 class PurpleDragon(Dragon):
-    curve = Curve(PURPLE_DRAGON_PATH.to_points(1000))
+    curve = Curve(PURPLE_DRAGON_PATH.to_points(2000))
     target_indexes = range(5, 10)
 
 
@@ -178,9 +264,11 @@ class RingOfFire(PerDroneStep):
     height = 1400
     starting_rotation: float = None
     rotation_start_delay = 20
+    rotation_speed = 0.45
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        rotation = self.starting_rotation + max(0, self.time_since_start - self.rotation_start_delay) / 2
+        rotation = self.starting_rotation + max(0,
+                                                self.time_since_start - self.rotation_start_delay) * self.rotation_speed
         v = dot(axis_to_rotation(vec3(0, 0, 1) * rotation), vec3(1, 0, 0))
         center = vec3(0, 0, self.height) + v * self.rotation_radius
         facing = cross(v, vec3(0, 0, 1))
