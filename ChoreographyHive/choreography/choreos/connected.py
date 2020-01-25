@@ -26,13 +26,14 @@ class ConnectedChoreo(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
+            ResetAttr(),
             TwinTowers(),
-            Wait(0.5),
+            Wait(2.0),
             ForwardThenHelix()
         ]
 
-class TwinTowers(TwoTickStateSetStep):
-    x_distance = 300
+class PezDispensers(TwoTickStateSetStep):
+    x_distance = -300
     y_distance = 2000
     height = 50
 
@@ -48,31 +49,37 @@ class TwinTowers(TwoTickStateSetStep):
             drone.velocity = vec3(0, 0, 0)
             drone.angular_velocity = vec3(0, 0, 0)
 
+class ResetAttr(PerDroneStep):
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        self.finished = True
+        drone.since_jumped = None
+
 class ForwardThenHelix(PerDroneStep):
-    delay = 0.8
-    duration = 20.0
+    delay = 0.6
+    duration = 25.0
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
 
-        # Control throttle start and jump.
-        if self.time_since_start > self.delay * (index//2):
-            # Go forward
-            drone.controls.throttle = 1.0 if abs(drone.velocity[1]) < 500 else 0.03
+        if drone.since_jumped is None:
+            # Control throttle start and jump.
+            if self.time_since_start > self.delay * (index//2):
+                # Go forward
+                drone.controls.throttle = 1.0 if abs(drone.velocity[1]) < 500 else 0.03
 
-            # If near half-line
-            if abs(drone.position[1]) < 250:
-                drone.since_jumped = 0.0
-                drone.controls.jump = True
-        
+                # If near half-line
+                if abs(drone.position[1]) < 500:
+                    drone.since_jumped = 0.0
+                    drone.controls.jump = True
+
         else:
-            # Init the variable.
-            drone.since_jumped = -1.0
+            # Increment timer.
+            drone.since_jumped += self.dt
 
-        # Create helix after jump.
-        if drone.since_jumped > 0.0:
-            height = 50 + drone.since_jumped * 150 # speed of rise
-            angle = 1.0 + drone.since_jumped * 1.2 # rotation speed
-            radius = 500
+            # Create helix after jump.
+            height = 50 + drone.since_jumped * 80 # speed of rise
+            angle = 1.0 + drone.since_jumped * 0.5 # rotation speed
+            radius = 450 * drone.since_jumped
 
             # Opposite side if index is even.
             if index % 2 == 0: angle += math.pi
@@ -85,7 +92,3 @@ class ForwardThenHelix(PerDroneStep):
             drone.hover.up = normalize(drone.position)
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
-
-        # Increment timer.
-        if drone.since_jumped >= 0.0:
-            drone.since_jumped += self.dt
