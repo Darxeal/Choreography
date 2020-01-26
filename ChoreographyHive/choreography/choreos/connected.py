@@ -84,28 +84,36 @@ class ForwardThenQuadHelix(PerDroneStep):
                     drone.since_jumped = 0.0
                     drone.controls.jump = True
 
+        # Create helix after jump.
         else:
             # Increment timer.
             drone.since_jumped += self.dt
 
-            # Create helix after jump.
-            angle = drone.since_jumped * 0.35 # rotation speed
-
-            if drone.since_jumped < 14:
+            # rise
+            if drone.since_jumped < 16:
                 height = 200 + drone.since_jumped * 80 # speed of rise
-            elif drone.since_jumped < 21:
-                height = 1320 - (drone.since_jumped - 14) * 80
+            # fall
+            elif drone.since_jumped < 24:
+                height = 1480 - (drone.since_jumped - 16) * 80
+            # second rise
+            elif drone.since_jumped < 32:
+                height = 840 + (drone.since_jumped - 24) * 80
             else:
-                height = 760 + (drone.since_jumped - 21) * 80
-            
-            if drone.since_jumped < 21:
-                radius = 550 + drone.since_jumped**3 / 10
-            else:
-                radius = 1475 - (drone.since_jumped - 21)**3 / 10
-            
+                height = 800 + 200 * (index // 16)
 
-            # Offset angle.
-            angle += (index // 16) * (math.pi / 2)
+            if drone.since_jumped < 16:
+                radius = 550 + drone.since_jumped**3 / 10
+            elif drone.since_jumped < 32:
+                radius = 960 - (drone.since_jumped - 16) * 20
+            else:
+                radius = 640 + 200 * (index // 16)
+
+            if self.time_since_start < 55:
+                angle = drone.since_jumped * 0.35 # rotation speed
+                # Offset angle.
+                angle += (index // 16) * (math.pi / 2)
+            else:
+                angle = (2 * math.pi / 16) * (index % 16)
 
             # Set hover target and controller.
             rot = rotation(angle)
