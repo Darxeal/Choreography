@@ -1,7 +1,9 @@
+import cmath
 import math
 from typing import List
 from dataclasses import dataclass
 
+import numpy
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
 
@@ -17,6 +19,7 @@ from rlutilities.simulation import Ball, Input
 from choreography.img_to_shape import convert_img_to_shape
 
 from .examples import YeetTheBallOutOfTheUniverse, FormACircle, Wait, FlyUp
+
 
 # HEX FLIP COOL CLIP
 class HexDoubleFlip(Choreography):
@@ -36,6 +39,7 @@ class HexDoubleFlip(Choreography):
             BackflipBoostyThing()
         ]
 
+
 class HexSetup(StateSettingStep):
     radius = 300
     center = vec3(-2000, 0, 100)
@@ -46,9 +50,10 @@ class HexSetup(StateSettingStep):
             rot = rotation(angle)
             v = vec3(dot(rot, vec2(1, 0)))
             drone.position = v * self.radius + self.center
-            drone.orientation = look_at(vec3(2,0,3), vec3(1,0,0))
+            drone.orientation = look_at(vec3(2, 0, 3), vec3(1, 0, 0))
             drone.velocity = vec3(0, 0, 500)
             drone.angular_velocity = vec3(0, 0, 0)
+
 
 class BoostUntilFast(DroneListStep):
     def step(self, packet: GameTickPacket, drones: List[Drone]):
@@ -57,6 +62,7 @@ class BoostUntilFast(DroneListStep):
         for drone in drones:
             drone.controls.pitch = 0
             drone.controls.boost = True
+
 
 class BackflipBoostyThing(BlindBehaviorStep):
     duration = 6.0
@@ -69,17 +75,17 @@ class BackflipBoostyThing(BlindBehaviorStep):
 # AUTOMATIC STATE SETTING INTO DRAWING
 class Drawing(StateSettingStep):
 
-    def __init__(self, image, origin=vec3(0,0,18), duration=2.0):
+    def __init__(self, image, origin=vec3(0, 0, 18), duration=2.0):
         super().__init__()
         self.duration = duration
         self.origin = origin
         self.shape = convert_img_to_shape(image)
-    
+
     def set_drone_states(self, drones: List[Drone]):
         for i, drone in enumerate(drones):
             if i < len(self.shape):
                 drone.position = self.origin + self.shape[i]
-                drone.orientation = mat3(1,0,0,0,1,0,0,0,1)
+                drone.orientation = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1)
                 drone.velocity = vec3(0, 0, 0)
             else:
                 drone.position = vec3(0, 0, 3000)
@@ -107,6 +113,7 @@ class CirclesAndSpheres(Choreography):
             HoverOrbit()
         ]
 
+
 class HoverSpinUp(PerDroneStep):
     duration = 6.0
 
@@ -118,6 +125,7 @@ class HoverSpinUp(PerDroneStep):
         drone.hover.target[2] = 1000
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
 
 class HoverSpinDown(PerDroneStep):
     duration = 6.0
@@ -131,6 +139,7 @@ class HoverSpinDown(PerDroneStep):
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
 
+
 class SphereFormation(DroneListStep):
     duration = 12.0
 
@@ -140,13 +149,13 @@ class SphereFormation(DroneListStep):
     radius_shrink_duration = 6.0
 
     layers = [
-        [0,        16],
-        [1,2,      17,18,       32,33],
-        [3,4,5,    19,20,21,    34,35,36],
-        [6,7,8,9,  22,23,24,25, 37,38,39,40],
-        [10,11,12, 26,27,28,    41,42,43],
-        [13,14,    29,30,       44,45],
-        [15,       31]
+        [0, 16],
+        [1, 2, 17, 18, 32, 33],
+        [3, 4, 5, 19, 20, 21, 34, 35, 36],
+        [6, 7, 8, 9, 22, 23, 24, 25, 37, 38, 39, 40],
+        [10, 11, 12, 26, 27, 28, 41, 42, 43],
+        [13, 14, 29, 30, 44, 45],
+        [15, 31]
     ]
     heights = [
         1500,
@@ -179,7 +188,8 @@ class SphereFormation(DroneListStep):
 
                     elif self.time_since_start < self.radius_shrink_start + self.radius_shrink_duration:
                         diff = 2000 - self.radii[i]
-                        radius = 2000 - diff * ((self.time_since_start - self.radius_shrink_start) / self.radius_shrink_duration)
+                        radius = 2000 - diff * (
+                                    (self.time_since_start - self.radius_shrink_start) / self.radius_shrink_duration)
                     else:
                         radius = self.radii[i]
 
@@ -210,17 +220,18 @@ class SphereFormation(DroneListStep):
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
 
+
 class HoverOrbit(PerDroneStep):
     duration = 8.0
 
     layers = [
-        [0,        16],
-        [1,2,      17,18,       32,33],
-        [3,4,5,    19,20,21,    34,35,36],
-        [6,7,8,9,  22,23,24,25, 37,38,39,40],
-        [10,11,12, 26,27,28,    41,42,43],
-        [13,14,    29,30,       44,45],
-        [15,       31]
+        [0, 16],
+        [1, 2, 17, 18, 32, 33],
+        [3, 4, 5, 19, 20, 21, 34, 35, 36],
+        [6, 7, 8, 9, 22, 23, 24, 25, 37, 38, 39, 40],
+        [10, 11, 12, 26, 27, 28, 41, 42, 43],
+        [13, 14, 29, 30, 44, 45],
+        [15, 31]
     ]
     heights = [
         1500,
@@ -254,10 +265,25 @@ class HoverOrbit(PerDroneStep):
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
 
+
 # DOUBLE HELIX
 
 class DoubleHelix(Choreography):
-    
+
+    @staticmethod
+    def get_appearances(num_bots: int) -> List[str]:
+        appearances = ['WillRedBlue.cfg'] * num_bots
+        # appearances[0::4] = ['WillYellowGreen.cfg'] * round(num_bots / 4)
+        # appearances[1::4] = ['WillYellowGreen.cfg'] * round(num_bots / 4)
+        return appearances
+
+    @staticmethod
+    def get_teams(num_bots: int) -> List[int]:
+        # Every other bot is on the orange team.
+        teams = [0] * num_bots
+        teams[1::2] = [1] * round(num_bots / 2)
+        return teams
+
     @staticmethod
     def get_num_bots():
         return 32
@@ -273,6 +299,7 @@ class DoubleHelix(Choreography):
             ForwardThenHelix()
         ]
 
+
 class TwoLineSetup(StateSettingStep):
     y_distance = 500
     x_distance = 300
@@ -280,13 +307,14 @@ class TwoLineSetup(StateSettingStep):
 
     def set_drone_states(self, drones: List[Drone]):
         for i, drone in enumerate(drones):
-            angle = (-1)**i * -math.pi / 2
-            x = -self.x_distance * (-1)**i
-            y = (self.y_distance + self.gap_offset * (i//2)) * (-1)**i
+            angle = (-1) ** i * -math.pi / 2
+            x = -self.x_distance * (-1) ** i
+            y = (self.y_distance + self.gap_offset * (i // 2)) * (-1) ** i
             drone.position = vec3(x, y, 20)
             drone.orientation = euler_to_rotation(vec3(0, angle, 0))
             drone.velocity = vec3(0, 0, 0)
             drone.angular_velocity = vec3(0, 0, 0)
+
 
 class ForwardThenHelix(PerDroneStep):
     duration = 13.0
@@ -320,6 +348,7 @@ class ForwardThenHelix(PerDroneStep):
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
 
+
 # F(X,Y) GRAPHER
 
 class GraphTest(Choreography):
@@ -336,26 +365,44 @@ class GraphTest(Choreography):
             YeetTheBallOutOfTheUniverse(),
             Grid(),
             BaseGraph(),
-            Parabola(),
-            BaseGraph(),
-            CosSin(),
-            BaseGraph(),
-            Wave()
+            # Parabola(),
+            # BaseGraph(),
+            # CosSin(),
+            # BaseGraph(),
+            # Wave(),
+            # BaseGraph(),
+            # WindMill(),
+            # BaseGraph(),
+            # Water()
+            # BaseGraph(),
+            # YeetEquation(),
+            # BaseGraph(),
+            # Limit(),
+            # BaseGraph(),
+            # Jochem(),
+            # BaseGraph(),
+            # LogarithmReal(),
+            # BaseGraph(),
+            Pants(),
+            # BaseGraph(),
+            # Saddle()
         ]
+
 
 class Grid(TwoTickStateSetStep):
     spacing = 200
 
     def set_drone_states(self, drones: List[Drone]):
-        s = int( math.sqrt( len(drones) ) ) # Side length
+        s = int(math.sqrt(len(drones)))  # Side length
         for i, drone in enumerate(drones):
             # Get grid pos.
-            x = (i //s) - (s-1)/2
-            y = (i % s) - (s-1)/2
-            drone.position = vec3(x * self.spacing, y * self.spacing, 800) # 800 is base height
-            drone.orientation = euler_to_rotation(vec3(math.pi/2, 0, 0))
+            x = (i // s) - (s - 1) / 2
+            y = (i % s) - (s - 1) / 2
+            drone.position = vec3(x * self.spacing, y * self.spacing, 800)  # 800 is base height
+            drone.orientation = euler_to_rotation(vec3(math.pi / 2, 0, 0))
             drone.velocity = vec3(0, 0, 100)
             drone.angular_velocity = vec3(0, 0, 0)
+
 
 class BaseGraph(DroneListStep):
     duration = math.pi
@@ -366,13 +413,13 @@ class BaseGraph(DroneListStep):
         return 0
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
-        s = int( math.sqrt( len(drones) ) ) # Side length
+        s = int(math.sqrt(len(drones)))  # Side length
         for i, drone in enumerate(drones):
             # Get grid pos.
-            x = (i //s) - (s-1)/2
-            y = (i % s) - (s-1)/2
+            x = (i // s) - (s - 1) / 2
+            y = (i % s) - (s - 1) / 2
             # Get height from func.
-            z = 800 + self.func(x, y) # 800 is base height
+            z = 800 + self.func(x, y)  # 800 is base height
 
             drone.hover.target = vec3(x * self.spacing, y * self.spacing, z)
             rot = rotation(self.rotation_speed * self.time_since_start * 2)
@@ -380,22 +427,99 @@ class BaseGraph(DroneListStep):
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
 
+
 class Parabola(BaseGraph):
-    
+
     def func(self, x, y):
-        return 40*(x**2 + y**2) - 200
+        return 40 * (x ** 2 + y ** 2) - 200
+
 
 class CosSin(BaseGraph):
 
     def func(self, x, y):
-        return 250*(math.cos(x) + math.sin(y))
+        return 250 * (math.cos(x) + math.sin(y))
 
-class Wave(BaseGraph):
-    duration = 4*math.pi
+
+class WindMill(BaseGraph):
+    duration = 4 * math.pi
 
     def func(self, x, y):
         t = self.time_since_start
-        return 150*(math.sin(x/2+t))
+        return 1000 * (numpy.sign(x * y) * numpy.sign(1 - (x * 9) ** 2 + (y * 9) ** 2) / 9)
+
+
+class Wave(BaseGraph):
+    duration = 4 * math.pi
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 150 * (math.sin(x / 2 + t))
+
+class YeetEquation(BaseGraph):
+    duration = 5
+
+    def func(self, x, y):
+        t = self.time_since_start
+        t_0 = 2
+        c = 0.5
+        a = 1/(4 * math.pi * c * (t+t_0))
+        b = -(x**2 + y**2) / (4 * c * (t+t_0))
+        return 20000 * a * math.exp(b)
+
+class Water(BaseGraph):
+    duration = 4 * math.pi
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 250 * (math.sin(x / 2 + t)) * (math.cos(y / 2 + t))
+
+
+class Saddle(BaseGraph):
+    duration = 4 * math.pi
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 3*x*y*t*math.cos(t)
+
+
+class Jochem(BaseGraph):
+    duration = 4
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 300 * t * x/(x**2+y**2+0.3)
+
+
+class Limit(BaseGraph):
+    duration = 4 * math.pi
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 10*t*math.cos(t)*x/(y + 0.001)
+
+
+class Will(BaseGraph):
+    duration = 5
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 10 *(math.sin(1.5*t) - 0.5) * (x**2 + y**2)
+
+
+class LogarithmReal(BaseGraph):
+    duration = 4 * math.pi
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 200 * math.cos(t) * (cmath.sqrt(x+y*1j)).real
+
+
+class Pants(BaseGraph):
+    duration = 4 * math.pi
+
+    def func(self, x, y):
+        t = self.time_since_start
+        return 275 * math.sin(t) * (cmath.sqrt(x+y*1j)).imag
 
 # HARDCODED CLONES
 
@@ -408,12 +532,12 @@ class Clones(Choreography):
         super().__init__(game_interface)
 
     def generate_sequence(self):
-
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
             StackThemUp(),
             GoForwardAndThenDoAJumpOrSomething()
         ]
+
 
 class StackThemUp(StateSettingStep):
     pos = vec3(0, -2000, 20)
@@ -423,21 +547,23 @@ class StackThemUp(StateSettingStep):
         for i, drone in enumerate(drones):
             drone.position = self.pos
             drone.position[2] += i * self.height
-            drone.orientation = euler_to_rotation(vec3(0, math.pi/2, 0))
+            drone.orientation = euler_to_rotation(vec3(0, math.pi / 2, 0))
             drone.velocity = vec3(0, 0, 0)
             drone.angular_velocity = vec3(0, 0, 0)
 
+
 @dataclass
 class MovementInInterval:
-    start : float
-    end : float
-    controls : Input
+    start: float
+    end: float
+    controls: Input
+
 
 # Pass in a list of MovementInIntervals and it automatically completes the moves with each drone.
 # If you have the temptation to use clone_delay = 0, use BlindBehaviourStep instead.
 class HardcodedMovement(PerDroneStep):
 
-    def __init__(self, movements : List[MovementInInterval], clone_delay : float = 1.0):
+    def __init__(self, movements: List[MovementInInterval], clone_delay: float = 1.0):
         self.movements = movements
         self.clone_delay = clone_delay
         super().__init__()
@@ -450,6 +576,7 @@ class HardcodedMovement(PerDroneStep):
 
         if index == packet.num_cars - 1:
             self.finished = self.time_since_start > delay + self.movements[-1].end
+
 
 class GoForwardAndThenDoAJumpOrSomething(HardcodedMovement):
 
@@ -465,4 +592,4 @@ class GoForwardAndThenDoAJumpOrSomething(HardcodedMovement):
             MovementInInterval(0.0, 3.0, a),
             MovementInInterval(3.0, 4.2, b)
         ]
-        super().__init__(movements, clone_delay = 0.8)
+        super().__init__(movements, clone_delay=0.8)
