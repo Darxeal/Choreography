@@ -4,14 +4,15 @@ from typing import List
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
 
+from choreography.choreos.AirShowPath import get_paths
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep
+from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep, \
+    ParallelStep
 
 from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm, cross
-from rlutilities.simulation import Ball, Input
-
-from choreography.img_to_shape import convert_img_to_shape
+from rlutilities.simulation import Ball, Input, Curve
+from choreography.utils import BezierPath, direction
 
 
 class YeetTheBallOutOfTheUniverse(StateSettingStep):
@@ -35,49 +36,117 @@ class FormATriangle(StateSettingStep):
             else:
                 drone.position = self.center + vec3((1 + math.floor(i / 2)) * -250, (1 + math.floor(i / 2)) * -250,
                                                     1750)
-            drone.orientation = look_at(v, vec3(0, 0, 1))
-            drone.velocity = vec3(0, 2300, 500)
+            print(i, drone.position)
+
+
+class Fly(StateSettingStep):
+    duration = 20
+    distance_between_body_parts = 300
+    curve: Curve = None
+
+    def set_drone_states(self, drones: List[Drone]):
+        for drone in drones:
+            t = self.time_since_start / self.duration * self.curve.length
+            t -= self.distance_between_body_parts * (drone.id - self.target_indexes[0])
+            t = self.curve.length - t
+
+            pos = self.curve.point_at(t)
+            pos_ahead = self.curve.point_at(t - 500)
+            pos_behind = self.curve.point_at(t + 30)
+
+            facing_direction = direction(pos_behind, pos)
+            target_left = cross(facing_direction, direction(pos, pos_ahead))
+            target_up = cross(target_left, facing_direction)
+            up = drone.up() + target_up * 0.9 + vec3(0, 0, 0.1)
+            target_orientation = look_at(facing_direction, up)
+
+            drone.position = pos
+            drone.velocity = facing_direction * (self.curve.length / self.duration)
             drone.angular_velocity = vec3(0, 0, 0)
+            drone.orientation = target_orientation
 
 
-class BoostUntilFast(PerDroneStep):
-    duration = 1.5
-
-    def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        if index == 0:
-            pass
-        elif index % 2 == 0:
-            drone.aerial_turn.target = look_at(vec3(0, 1, 0.25), vec3(1, 0, 1))
-            drone.aerial_turn.step(self.dt)
-        else:
-            drone.aerial_turn.target = look_at(vec3(0, 1, 0.25), vec3(-1, 0, 1))
-            drone.aerial_turn.step(self.dt)
-        drone.controls = drone.aerial_turn.controls
-        drone.controls.boost = 1
-        drone.controls.throttle = 1
+class bot0(Fly):
+    curve = Curve(get_paths()[0].to_points(1000))
+    target_indexes = range(0, 1)
 
 
-class FlyOut(PerDroneStep):
-    duration = 0.25
-
-    def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        if index == 0:
-            pass
-        else:
-            drone.controls.pitch = 1
-        drone.controls.boost = 1
-        drone.controls.throttle = 1
+class bot1(Fly):
+    curve = Curve(get_paths()[1].to_points(1000))
+    target_indexes = range(1, 2)
 
 
-class Boost(PerDroneStep):
-    duration = 1
+class bot2(Fly):
+    curve = Curve(get_paths()[2].to_points(1000))
+    target_indexes = range(2, 3)
 
-    def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        drone.controls.boost = 1
-        drone.controls.throttle = 1
 
+class bot3(Fly):
+    curve = Curve(get_paths()[3].to_points(1000))
+    target_indexes = range(3, 4)
+
+
+class bot4(Fly):
+    curve = Curve(get_paths()[4].to_points(1000))
+    target_indexes = range(4, 5)
+
+
+class bot5(Fly):
+    curve = Curve(get_paths()[5].to_points(1000))
+    target_indexes = range(5, 6)
+
+
+class bot6(Fly):
+    curve = Curve(get_paths()[6].to_points(1000))
+    target_indexes = range(6, 7)
+
+
+class bot7(Fly):
+    curve = Curve(get_paths()[7].to_points(1000))
+    target_indexes = range(7, 8)
+
+
+class bot8(Fly):
+    curve = Curve(get_paths()[8].to_points(1000))
+    target_indexes = range(8, 9)
+
+
+class Boost(BlindBehaviorStep):
+    target_indexes = range(0, 9)
+
+    def set_controls(self, controls: Input):
+        controls.boost = True
 
 class AirShow(Choreography):
+
+    @staticmethod
+    def get_appearances(num_bots: int) -> List[str]:
+        appearances = ['default.cfg'] * num_bots
+        appearances[0] = 'AirShowWhite.cfg'
+        appearances[1] = 'AirShowWhite.cfg'
+        appearances[2] = 'AirShowWhite.cfg'
+        appearances[3] = 'AirShowBlue.cfg'
+        appearances[4] = 'AirShowRed.cfg'
+        appearances[5] = 'AirShowBlue.cfg'
+        appearances[6] = 'AirShowRed.cfg'
+        appearances[7] = 'AirShowBlue.cfg'
+        appearances[8] = 'AirShowRed.cfg'
+        return appearances
+
+    @staticmethod
+    def get_teams(num_bots: int) -> List[int]:
+        # Every other bot is on the orange team.
+        teams = [0] * num_bots
+        teams[0] = 1
+        teams[1] = 1
+        teams[2] = 1
+        teams[3] = 0
+        teams[4] = 1
+        teams[5] = 0
+        teams[6] = 1
+        teams[7] = 0
+        teams[8] = 1
+        return teams
 
     @staticmethod
     def get_num_bots():
@@ -90,7 +159,16 @@ class AirShow(Choreography):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
             FormATriangle(),
-            BoostUntilFast(),
-            FlyOut(),
-            Boost()
+            ParallelStep([
+                bot0(),
+                bot1(),
+                bot2(),
+                bot3(),
+                bot4(),
+                bot5(),
+                bot6(),
+                bot7(),
+                bot8(),
+                Boost()
+            ]),
         ]
