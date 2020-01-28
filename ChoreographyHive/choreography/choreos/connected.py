@@ -40,11 +40,18 @@ class ConnectedChoreo(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            FourStacks(),
-            ResetAttr(),
-            Wait(2.0),
-            ForwardThenQuadHelix(),
-            SortToCircle()
+            # FourStacks(),
+            # ResetAttr(),
+            # Wait(2.0),
+            # ForwardThenQuadHelix(),
+            # SortToCircle(),
+            ResetCircle(), # Cheating while testing
+            StationaryCircle(),
+            SpinUp(),
+            SpinDown(),
+            StationaryCircle(),
+            SeparateIntoFourGroups(),
+            SmallerCircles()
         ]
 
 class FourStacks(TwoTickStateSetStep):
@@ -143,7 +150,7 @@ class ForwardThenQuadHelix(PerDroneStep):
                 drone.controls.boost = False
 
 class SortToCircle(PerDroneStep):
-    duration = 120.0
+    duration = 60.0
     delay = 0.4
     radius = 1800
     height = 800
@@ -216,13 +223,25 @@ class SortToCircle(PerDroneStep):
         else:
             drone.controls.jump = False
 
+class ResetCircle(TwoTickStateSetStep):
+    radius = 1800
+    height = 800
+
+    def set_drone_states(self, drones: List[Drone]):
+        for i, drone in enumerate(drones):
+            angle = (2 * math.pi / 64) * i
+            drone.position = vec3(dot(rotation(angle), vec2(self.radius, 0)))
+            drone.position[2] = self.height
+            drone.velocity = vec3(0, 0, 0)
+            drone.orientation = euler_to_rotation(vec3(math.pi/2, angle, math.pi))
+            drone.angular_velocity = vec3(0, 0, 0)
+
 class StationaryCircle(PerDroneStep):
-    duration = 2.0
+    duration = 1.0
     radius = 1800
     height = 800
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-
         angle = (2 * math.pi / 64) * index
         target = vec3(dot(rotation(angle), vec2(self.radius, 0)))
         target[2] = self.height
@@ -230,5 +249,85 @@ class StationaryCircle(PerDroneStep):
         # Hover controls
         drone.hover.target = target
         drone.hover.up = normalize(drone.position)
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+class SpinUp(PerDroneStep):
+    duration = 5
+    height = 800
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        radius = 1800 - 100 * self.time_since_start
+        angle = self.time_since_start * (2 * math.pi / 10)
+        angle += (2 * math.pi / 64) * index        
+        target = vec3(dot(rotation(angle), vec2(radius, 0)))
+        target[2] = self.height
+
+        drone.hover.up = normalize(drone.position)
+        drone.hover.target = target
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+class SpinDown(PerDroneStep):
+    duration = 5
+    height = 800
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        radius = 1300 + 100 * self.time_since_start
+        angle = math.pi + self.time_since_start * (2 * math.pi / 10)
+        angle += (2 * math.pi / 64) * index
+        target = vec3(dot(rotation(angle), vec2(radius, 0)))
+        target[2] = self.height
+
+        drone.hover.up = normalize(drone.position)
+        drone.hover.target = target
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+class SeparateIntoFourGroups(PerDroneStep):
+    duration = 5.0
+    start_radius = 1800
+    end_radius = 2500
+    height = 800
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        # Calculate shift direction.
+        direction_angle = (math.pi / 4) + ((math.pi / 2) * (index // 16))
+        direction = vec3(dot(rotation(direction_angle), vec2(1, 0)))
+
+        # Shift in one direction.
+        angle = (2 * math.pi / 64) * index
+        target = vec3(dot(rotation(angle), vec2(self.start_radius, 0)))
+        target += direction * (self.end_radius - self.start_radius) * (self.time_since_start / self.duration)
+        target[2] = self.height
+
+        # Hover controls.
+        drone.hover.up = normalize(drone.position)
+        drone.hover.target = target
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+class SmallerCircles(PerDroneStep):
+    small_radius = 400
+    big_radius = 2500
+    height = 800
+    
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+            
+        # Get centre of small circle.
+        direction_angle = (math.pi / 4) + ((math.pi / 2) * (index // 16))
+        centre = vec3(dot(rotation(direction_angle), vec2(1, 0))) * self.big_radius
+        centre[2] = self.height
+
+        # Angle for the small circle.
+        angle = (2 * math.pi / 16) * (index % 16)
+        angle += (2 * math.pi / 4) * (index // 16 - 1)
+        # angle += SPIN?
+        target = vec3(dot(rotation(angle), vec2(self.small_radius, 0)))
+        target += centre
+
+        # Hover controls.
+        drone.hover.up = normalize(drone.position - centre)
+        drone.hover.target = target
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
