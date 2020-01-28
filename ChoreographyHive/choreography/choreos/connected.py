@@ -51,7 +51,8 @@ class ConnectedChoreo(Choreography):
             SpinDown(),
             StationaryCircle(),
             SeparateIntoFourGroups(),
-            SmallerCircles()
+            SmallerCirclesStart(),
+            SmallerCirclesCross(),
         ]
 
 class FourStacks(TwoTickStateSetStep):
@@ -145,7 +146,7 @@ class ForwardThenQuadHelix(PerDroneStep):
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
 
-            if drone.since_jumped < 0.1:
+            if drone.since_jumped < 0.05:
                 drone.controls.jump = True
                 drone.controls.boost = False
 
@@ -218,7 +219,7 @@ class SortToCircle(PerDroneStep):
         drone.controls = drone.hover.controls
 
         # If any bot got lost, now they have a chance to recover.
-        if drone.position[2] < 20:
+        if drone.has_wheel_contact:
             drone.controls.jump = True
         else:
             drone.controls.jump = False
@@ -237,7 +238,7 @@ class ResetCircle(TwoTickStateSetStep):
             drone.angular_velocity = vec3(0, 0, 0)
 
 class StationaryCircle(PerDroneStep):
-    duration = 1.0
+    duration = 2.0
     radius = 1800
     height = 800
 
@@ -251,6 +252,12 @@ class StationaryCircle(PerDroneStep):
         drone.hover.up = normalize(drone.position)
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
+        # If any bot got lost, now they have a chance to recover.
+        if drone.has_wheel_contact:
+            drone.controls.jump = True
+        else:
+            drone.controls.jump = False
 
 class SpinUp(PerDroneStep):
     duration = 5
@@ -301,14 +308,17 @@ class SeparateIntoFourGroups(PerDroneStep):
         target += direction * (self.end_radius - self.start_radius) * (self.time_since_start / self.duration)
         target[2] = self.height
 
+        target = (target + drone.position) / 2
+
         # Hover controls.
         drone.hover.up = normalize(drone.position)
         drone.hover.target = target
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
 
-class SmallerCircles(PerDroneStep):
-    small_radius = 400
+class SmallerCirclesStart(PerDroneStep):
+    duration = 5.0
+    small_radius = 600
     big_radius = 2500
     height = 800
     
@@ -321,10 +331,49 @@ class SmallerCircles(PerDroneStep):
 
         # Angle for the small circle.
         angle = (2 * math.pi / 16) * (index % 16)
-        angle += (2 * math.pi / 4) * (index // 16 - 1)
-        # angle += SPIN?
+        angle += (2 * math.pi / 4) * (index // 16 - 1) 
         target = vec3(dot(rotation(angle), vec2(self.small_radius, 0)))
         target += centre
+
+        # Try to ease the transition
+        target[2] += (index % 16 - 8) * (20 - (20/5 * self.time_since_start))
+
+        # Hover controls.
+        drone.hover.up = normalize(drone.position - centre)
+        drone.hover.target = target
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+        # If any bot got lost, now they have a chance to recover.
+        if drone.has_wheel_contact:
+            drone.controls.jump = True
+        else:
+            drone.controls.jump = False
+
+class SmallerCirclesCross(PerDroneStep):
+    duration = 20.0
+    small_radius = 600
+    big_radius = 2500
+    height = 800
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+
+        # Get centre of small circle.
+        direction_angle = (math.pi / 4) + ((math.pi / 2) * (index // 16))
+        centre = vec3(dot(rotation(direction_angle), vec2(1, 0)))
+        # Crossing action.
+        centre *= (self.big_radius - self.time_since_start * 250)
+        centre[2] = self.height
+
+        # Angle for the small circle.
+        angle = (2 * math.pi / 16) * (index % 16)
+        angle += (2 * math.pi / 4) * (index // 16 - 1)
+        angle += self.time_since_start * 0.5 # spin.
+        target = vec3(dot(rotation(angle), vec2(self.small_radius, 0)))
+        target += centre
+        
+        # Different heights.
+        target[2] += (index // 16 - 2) * 150
 
         # Hover controls.
         drone.hover.up = normalize(drone.position - centre)
