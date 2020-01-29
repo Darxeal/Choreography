@@ -40,12 +40,12 @@ class ConnectedChoreo(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            # FourStacks(),
-            # ResetAttr(),
-            # Wait(2.0),
-            # ForwardThenQuadHelix(),
-            # SortToCircle(),
-            ResetCircle(), # Cheating while testing
+            FourStacks(),
+            ResetAttr(),
+            Wait(2.0),
+            ForwardThenQuadHelix(),
+            SortToCircle(),
+            # ResetCircle(), # Cheating while testing
             StationaryCircle(),
             SpinUp(),
             SpinDown(),
@@ -53,7 +53,8 @@ class ConnectedChoreo(Choreography):
             SeparateIntoFourGroups(),
             SmallerCirclesStart(),
             SmallerCirclesToCylinder(),
-            SpinInCylinder()
+            SpinInCylinder(),
+            Sphere()
         ]
 
 class FourStacks(TwoTickStateSetStep):
@@ -388,12 +389,16 @@ class SmallerCirclesToCylinder(PerDroneStep):
         drone.controls = drone.hover.controls
 
 class SpinInCylinder(PerDroneStep):
-    duration = 10.0
+    duration = 8.0
 
     radius = 600
+    radius_increase = 50
 
     height = 800
+    height_increase = 30
+
     height_diff = 150
+    height_diff_increase = 30
 
     spin = 0.3
 
@@ -401,9 +406,29 @@ class SpinInCylinder(PerDroneStep):
         
         drone.hover.up = normalize(drone.position)
         clockwise_rotation = axis_to_rotation(vec3(0, 0, self.spin * (-1)**(index // 16)))
-        position_on_circle = normalize(xy(drone.position)) * self.radius
+        position_on_circle = normalize(xy(drone.position)) * (self.radius + self.radius_increase * self.time_since_start)
         drone.hover.target = dot(clockwise_rotation, position_on_circle)
-        drone.hover.target[2] = self.height
-        drone.hover.target[2] += (index // 16 - 2) * self.height_diff
+        drone.hover.target[2] = self.height + self.height_increase * self.time_since_start
+        drone.hover.target[2] += (index // 16 - 2) * (self.height_diff + self.height_diff_increase * self.time_since_start)
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+class Sphere(PerDroneStep):
+    radius = 800
+    height = 1000
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        # Just ask me in discord about this.
+        layer = (2*(index//16) + (index%2) - 3.5) / 4
+        height = self.height + layer * self.radius
+        radius = math.sqrt(1 - layer**2) * self.radius
+
+        spin = 0 if self.time_since_start < 5.0 else 1
+
+        drone.hover.up = normalize(drone.position)
+        clockwise_rotation = axis_to_rotation(vec3(0, 0, spin))
+        position_on_circle = normalize(xy(drone.position)) * radius
+        drone.hover.target = dot(clockwise_rotation, position_on_circle)
+        drone.hover.target[2] = height
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
