@@ -593,3 +593,30 @@ class GoForwardAndThenDoAJumpOrSomething(HardcodedMovement):
             MovementInInterval(3.0, 4.2, b)
         ]
         super().__init__(movements, clone_delay=0.8)
+
+
+# Unused cool sphere
+class CoolSphere(PerDroneStep):
+    duration = 30.0
+    height = 1100
+    radius = 850
+    unwind_start_time = 10.0
+    max_frequency = 30.0
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        if self.time_since_start > self.unwind_start_time:
+            f = self.max_frequency - (self.time_since_start - self.unwind_start_time)
+        else:
+            f = self.max_frequency
+
+        z = (index - 31.5) / 32 # For 64 bots :^)
+        x = math.sqrt(1 - z**2) * math.cos(z * f)
+        y = math.sqrt(1 - z**2) * math.sin(z * f)
+
+        target = vec3(x, y, z) * self.radius
+        target[2] += self.height
+
+        drone.hover.up = normalize(drone.position)
+        drone.hover.target = target
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
