@@ -9,7 +9,7 @@ from choreography.drone import Drone
 from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, \
     StateSettingStep, TwoTickStateSetStep
 
-from rlutilities.linear_algebra import vec2, vec3, euler_to_rotation, rotation, dot, normalize, norm
+from rlutilities.linear_algebra import vec2, vec3, euler_to_rotation, rotation, dot, normalize, norm, xy, axis_to_rotation
 from rlutilities.simulation import Ball, Input
 
 from .examples import YeetTheBallOutOfTheUniverse, Wait
@@ -52,7 +52,8 @@ class ConnectedChoreo(Choreography):
             StationaryCircle(),
             SeparateIntoFourGroups(),
             SmallerCirclesStart(),
-            SmallerCirclesCross(),
+            SmallerCirclesToCylinder(),
+            SpinInCylinder()
         ]
 
 class FourStacks(TwoTickStateSetStep):
@@ -260,12 +261,12 @@ class StationaryCircle(PerDroneStep):
             drone.controls.jump = False
 
 class SpinUp(PerDroneStep):
-    duration = 5
+    duration = 5.0
     height = 800
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        radius = 1800 - 100 * self.time_since_start
-        angle = self.time_since_start * (2 * math.pi / 10)
+        radius = 1800 - 150 * self.time_since_start
+        angle = self.time_since_start * (math.pi / 5)
         angle += (2 * math.pi / 64) * index        
         target = vec3(dot(rotation(angle), vec2(radius, 0)))
         target[2] = self.height
@@ -276,17 +277,17 @@ class SpinUp(PerDroneStep):
         drone.controls = drone.hover.controls
 
 class SpinDown(PerDroneStep):
-    duration = 5
+    duration = 5.0
     height = 800
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        radius = 1300 + 100 * self.time_since_start
-        angle = math.pi + self.time_since_start * (2 * math.pi / 10)
+        radius = 1050 + 150 * self.time_since_start
+        angle = math.pi + self.time_since_start * (math.pi / 5)
         angle += (2 * math.pi / 64) * index
         target = vec3(dot(rotation(angle), vec2(radius, 0)))
         target[2] = self.height
 
-        drone.hover.up = normalize(drone.position)
+        drone.hover.up = normalize(-1 * xy(drone.position))
         drone.hover.target = target
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
@@ -294,7 +295,7 @@ class SpinDown(PerDroneStep):
 class SeparateIntoFourGroups(PerDroneStep):
     duration = 5.0
     start_radius = 1800
-    end_radius = 2500
+    end_radius = 3000
     height = 800
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
@@ -319,7 +320,7 @@ class SeparateIntoFourGroups(PerDroneStep):
 class SmallerCirclesStart(PerDroneStep):
     duration = 5.0
     small_radius = 600
-    big_radius = 2500
+    big_radius = 2700
     height = 800
     
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
@@ -350,33 +351,59 @@ class SmallerCirclesStart(PerDroneStep):
         else:
             drone.controls.jump = False
 
-class SmallerCirclesCross(PerDroneStep):
-    duration = 20.0
+class SmallerCirclesToCylinder(PerDroneStep):
     small_radius = 600
-    big_radius = 2500
+    big_radius = 2700
+
     height = 800
+    height_diff = 150
+
+    speed = 250
+    spin = 0.4
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        self.finished = (100 + self.big_radius - self.time_since_start * self.speed) <= 0
 
         # Get centre of small circle.
         direction_angle = (math.pi / 4) + ((math.pi / 2) * (index // 16))
         centre = vec3(dot(rotation(direction_angle), vec2(1, 0)))
         # Crossing action.
-        centre *= (self.big_radius - self.time_since_start * 250)
+        centre *= (self.big_radius - self.time_since_start * self.speed)
         centre[2] = self.height
 
         # Angle for the small circle.
         angle = (2 * math.pi / 16) * (index % 16)
         angle += (2 * math.pi / 4) * (index // 16 - 1)
-        angle += self.time_since_start * 0.5 # spin.
+        angle += self.time_since_start * self.spin
         target = vec3(dot(rotation(angle), vec2(self.small_radius, 0)))
         target += centre
         
         # Different heights.
-        target[2] += (index // 16 - 2) * 150
+        target[2] += (index // 16 - 2) * self.height_diff
 
         # Hover controls.
         drone.hover.up = normalize(drone.position - centre)
         drone.hover.target = target
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
+
+class SpinInCylinder(PerDroneStep):
+    duration = 10.0
+
+    radius = 600
+
+    height = 800
+    height_diff = 150
+
+    spin = 0.3
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        
+        drone.hover.up = normalize(drone.position)
+        clockwise_rotation = axis_to_rotation(vec3(0, 0, self.spin * (-1)**(index // 16)))
+        position_on_circle = normalize(xy(drone.position)) * self.radius
+        drone.hover.target = dot(clockwise_rotation, position_on_circle)
+        drone.hover.target[2] = self.height
+        drone.hover.target[2] += (index // 16 - 2) * self.height_diff
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
