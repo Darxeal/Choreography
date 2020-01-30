@@ -40,21 +40,22 @@ class ConnectedChoreo(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            # FourStacks(),
-            # ResetAttr(),
-            # Wait(2.0),
-            # ForwardThenQuadHelix(),
-            # SortToCircle(),
-            ResetCircle(), # Cheating while testing
+            FourStacks(),
+            ResetAttr(),
+            Wait(2.0),
+            ForwardThenQuadHelix(),
+            # HelixTransitionToCircle(),
+            SortToCircle(),
+            # ResetCircle(), # Cheating while testing
             StationaryCircle(),
-            # SpinUp(),
-            # SpinDown(),
-            # StationaryCircle(),
+            SpinUp(),
+            SpinDown(),
+            StationaryCircle(),
             SeparateIntoFourGroups(),
             SmallerCirclesStart(),
             SmallerCirclesToCylinder(),
             SpinInCylinder(),
-            Sphere()
+            Sphere(),
         ]
 
 class FourStacks(TwoTickStateSetStep):
@@ -151,6 +152,41 @@ class ForwardThenQuadHelix(PerDroneStep):
             if drone.since_jumped < 0.05:
                 drone.controls.jump = True
                 drone.controls.boost = False
+
+class HelixTransitionToCircle(PerDroneStep):
+    duration = 60.0
+    radius = 1800
+    height = 800
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        if drone.start_pos is None:
+            drone.start_pos = drone.position
+
+        current_radius = norm(vec2(drone.position))
+
+        desired_angle = (2 * math.pi / 64) * index
+        current_angle = math.atan2(drone.position[1], drone.position[0])
+        if current_angle < 0.0: current_angle += 2 * math.pi # only positive angles
+
+        # Expand radius.
+        if current_radius < self.radius - 150:
+            direction_angle = (math.pi / 4) + ((math.pi / 2) * (index // 16))
+            direction = vec3(dot(rotation(direction_angle), vec2(1, 0)))
+            target = drone.position + direction * 200
+            target[2] = drone.start_pos[2]
+        # Get to correct angle.
+        elif abs(desired_angle - current_angle) > 0.05:
+            target = vec3(dot(rotation(desired_angle), vec2(self.radius, 0)))
+            target[2] = drone.start_pos[2]
+        # Get to correct height.
+        else:
+            target = vec3(dot(rotation(desired_angle), vec2(self.radius, 0)))
+            target[2] = self.height
+        
+        drone.hover.up = normalize(drone.position)
+        drone.hover.target = target
+        drone.hover.step(self.dt)
+        drone.controls = drone.hover.controls
 
 class SortToCircle(PerDroneStep):
     duration = 60.0
