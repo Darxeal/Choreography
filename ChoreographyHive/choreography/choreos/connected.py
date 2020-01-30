@@ -40,16 +40,16 @@ class ConnectedChoreo(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            FourStacks(),
-            ResetAttr(),
-            Wait(2.0),
-            ForwardThenQuadHelix(),
-            SortToCircle(),
-            # ResetCircle(), # Cheating while testing
+            # FourStacks(),
+            # ResetAttr(),
+            # Wait(2.0),
+            # ForwardThenQuadHelix(),
+            # SortToCircle(),
+            ResetCircle(), # Cheating while testing
             StationaryCircle(),
-            SpinUp(),
-            SpinDown(),
-            StationaryCircle(),
+            # SpinUp(),
+            # SpinDown(),
+            # StationaryCircle(),
             SeparateIntoFourGroups(),
             SmallerCirclesStart(),
             SmallerCirclesToCylinder(),
@@ -319,9 +319,9 @@ class SeparateIntoFourGroups(PerDroneStep):
         drone.controls = drone.hover.controls
 
 class SmallerCirclesStart(PerDroneStep):
-    duration = 5.0
+    duration = 7.5
     small_radius = 600
-    big_radius = 2700
+    big_radius = 2500
     height = 800
     
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
@@ -332,13 +332,13 @@ class SmallerCirclesStart(PerDroneStep):
         centre[2] = self.height
 
         # Angle for the small circle.
-        angle = (2 * math.pi / 16) * (index % 16)
-        angle += (2 * math.pi / 4) * (index // 16 - 1) 
+        # Wraps nicely around the small circle.
+        t = self.time_since_start + 2.5
+        if t > 2 * math.pi: t = 2 * math.pi
+        angle = (t / 16) * (index % 16 - 8)
+        angle += (2 * math.pi / 4) * (index // 16) + (math.pi / 4)
         target = vec3(dot(rotation(angle), vec2(self.small_radius, 0)))
         target += centre
-
-        # Try to ease the transition
-        target[2] += (index % 16 - 8) * (20 - (20/5 * self.time_since_start))
 
         # Hover controls.
         drone.hover.up = normalize(drone.position - centre)
@@ -354,12 +354,12 @@ class SmallerCirclesStart(PerDroneStep):
 
 class SmallerCirclesToCylinder(PerDroneStep):
     small_radius = 600
-    big_radius = 2700
+    big_radius = 2500
 
-    height = 800
+    height = 750
     height_diff = 150
 
-    speed = 250
+    speed = 200
     spin = 0.4
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
@@ -400,7 +400,7 @@ class SpinInCylinder(PerDroneStep):
     height_diff = 150
     height_diff_increase = 30
 
-    spin = 0.3
+    spin = 0.4
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         
@@ -423,7 +423,7 @@ class Sphere(PerDroneStep):
         height = self.height + layer * self.radius
         radius = math.sqrt(1 - layer**2) * self.radius
 
-        spin = 0 if self.time_since_start < 5.0 else 1
+        spin = 0 if self.time_since_start < 3.0 else 0.5
 
         drone.hover.up = normalize(drone.position)
         clockwise_rotation = axis_to_rotation(vec3(0, 0, spin))
