@@ -357,6 +357,15 @@ class GraphTest(Choreography):
     def get_num_bots():
         return 64
 
+    @staticmethod
+    def get_appearances(num_bots: int) -> List[str]:
+        return 64 * ['graph.cfg']
+
+    # @staticmethod
+    # def get_teams(num_bots: int) -> List[int]:
+    #     teams = [0] * num_bots
+    #     return teams
+
     def __init__(self, game_interface: GameInterface):
         super().__init__(game_interface)
 
@@ -365,27 +374,19 @@ class GraphTest(Choreography):
             YeetTheBallOutOfTheUniverse(),
             Grid(),
             BaseGraph(),
-            # Parabola(),
-            # BaseGraph(),
-            # CosSin(),
-            # BaseGraph(),
-            # Wave(),
-            # BaseGraph(),
-            # WindMill(),
-            # BaseGraph(),
-            # Water()
-            # BaseGraph(),
-            # YeetEquation(),
-            # BaseGraph(),
-            # Limit(),
-            # BaseGraph(),
-            # Jochem(),
-            # BaseGraph(),
-            # LogarithmReal(),
-            # BaseGraph(),
+            Wave(),
+            Water(),
+            BaseGraph(),
+            Saddle(),
+            BaseGraph(),
             Pants(),
-            # BaseGraph(),
-            # Saddle()
+            # Parabola(),
+            # CosSin(),
+            # WindMill(),
+            # YeetEquation(),
+            # Limit(),
+            # Jochem(),
+            # LogarithmReal(),
         ]
 
 
@@ -405,7 +406,7 @@ class Grid(TwoTickStateSetStep):
 
 
 class BaseGraph(DroneListStep):
-    duration = math.pi
+    duration = 2
     rotation_speed = 0
     spacing = 200
 
@@ -449,11 +450,11 @@ class WindMill(BaseGraph):
 
 
 class Wave(BaseGraph):
-    duration = 4 * math.pi
+    duration = 2 * math.pi
 
     def func(self, x, y):
         t = self.time_since_start
-        return 150 * (math.sin(x / 2 + t))
+        return 150 * (math.sin(x / 2 + 2*t))
 
 class YeetEquation(BaseGraph):
     duration = 5
@@ -467,7 +468,7 @@ class YeetEquation(BaseGraph):
         return 20000 * a * math.exp(b)
 
 class Water(BaseGraph):
-    duration = 4 * math.pi
+    duration = 2 * math.pi
 
     def func(self, x, y):
         t = self.time_since_start
@@ -479,7 +480,7 @@ class Saddle(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 3*x*y*t*math.cos(t)
+        return 4*x*y*t*math.cos(t)
 
 
 class Jochem(BaseGraph):
