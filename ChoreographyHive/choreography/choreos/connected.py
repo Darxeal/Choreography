@@ -439,13 +439,13 @@ class SpinInCylinder(PerDroneStep):
     duration = 8.0
 
     radius = 600
-    radius_increase = 50
+    radius_increase = -10
 
     height = 800
-    height_increase = 30
+    height_increase = -10
 
     height_diff = 150
-    height_diff_increase = 30
+    height_diff_increase = 10
 
     spin = 0.4
 
@@ -461,8 +461,8 @@ class SpinInCylinder(PerDroneStep):
         drone.controls = drone.hover.controls
 
 class Sphere(PerDroneStep):
-    radius = 800
-    height = 1000
+    radius = 600
+    height = 700
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         # Just ask me in discord about this.
