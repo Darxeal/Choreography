@@ -73,11 +73,21 @@ class BackflipBoostyThing(BlindBehaviorStep):
 
 
 # AUTOMATIC STATE SETTING INTO DRAWING
-class Drawing(StateSettingStep):
+class Dickbutt(Choreography):
+    def __init__(self, game_interface: GameInterface):
+        super().__init__(game_interface)
 
-    def __init__(self, image, origin=vec3(0, 0, 18), duration=2.0):
+    def generate_sequence(self):
+        self.sequence = [
+            YeetTheBallOutOfTheUniverse(),
+            Drawing('dickbutt.png', origin=vec3(-1000, 1500, 18)),
+            Wait(1.0)
+        ]
+
+class Drawing(TwoTickStateSetStep):
+
+    def __init__(self, image, origin=vec3(0, 0, 18)):
         super().__init__()
-        self.duration = duration
         self.origin = origin
         self.shape = convert_img_to_shape(image)
 
