@@ -1,23 +1,20 @@
 import cmath
 import math
-from typing import List
 from dataclasses import dataclass
+from typing import List
 
 import numpy
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
+from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm, normalize, \
+    xy, axis_to_rotation, euler_to_rotation
+from rlutilities.simulation import Input
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, \
+from choreography.group_step import BlindBehaviorStep, DroneListStep, PerDroneStep, \
     StateSettingStep, TwoTickStateSetStep
-
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm, normalize, \
-    xy, axis_to_rotation, euler_to_rotation
-from rlutilities.simulation import Ball, Input
-
-from choreography.img_to_shape import convert_img_to_shape
-
+from choreography.utils.img_to_shape import convert_img_to_shape
 from .examples import YeetTheBallOutOfTheUniverse, FormACircle, Wait, FlyUp
 
 
@@ -83,6 +80,7 @@ class Dickbutt(Choreography):
             Drawing('dickbutt.png', origin=vec3(-1000, 1500, 18)),
             Wait(1.0)
         ]
+
 
 class Drawing(TwoTickStateSetStep):
 
@@ -199,7 +197,7 @@ class SphereFormation(DroneListStep):
                     elif self.time_since_start < self.radius_shrink_start + self.radius_shrink_duration:
                         diff = 2000 - self.radii[i]
                         radius = 2000 - diff * (
-                                    (self.time_since_start - self.radius_shrink_start) / self.radius_shrink_duration)
+                                (self.time_since_start - self.radius_shrink_start) / self.radius_shrink_duration)
                     else:
                         radius = self.radii[i]
 
@@ -464,7 +462,8 @@ class Wave(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 150 * (math.sin(x / 2 + 2*t))
+        return 150 * (math.sin(x / 2 + 2 * t))
+
 
 class YeetEquation(BaseGraph):
     duration = 5
@@ -473,9 +472,10 @@ class YeetEquation(BaseGraph):
         t = self.time_since_start
         t_0 = 2
         c = 0.5
-        a = 1/(4 * math.pi * c * (t+t_0))
-        b = -(x**2 + y**2) / (4 * c * (t+t_0))
+        a = 1 / (4 * math.pi * c * (t + t_0))
+        b = -(x ** 2 + y ** 2) / (4 * c * (t + t_0))
         return 20000 * a * math.exp(b)
+
 
 class Water(BaseGraph):
     duration = 2 * math.pi
@@ -490,7 +490,7 @@ class Saddle(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 4*x*y*t*math.cos(t)
+        return 4 * x * y * t * math.cos(t)
 
 
 class Jochem(BaseGraph):
@@ -498,7 +498,7 @@ class Jochem(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 300 * t * x/(x**2+y**2+0.3)
+        return 300 * t * x / (x ** 2 + y ** 2 + 0.3)
 
 
 class Limit(BaseGraph):
@@ -506,7 +506,7 @@ class Limit(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 10*t*math.cos(t)*x/(y + 0.001)
+        return 10 * t * math.cos(t) * x / (y + 0.001)
 
 
 class Will(BaseGraph):
@@ -514,7 +514,7 @@ class Will(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 10 *(math.sin(1.5*t) - 0.5) * (x**2 + y**2)
+        return 10 * (math.sin(1.5 * t) - 0.5) * (x ** 2 + y ** 2)
 
 
 class LogarithmReal(BaseGraph):
@@ -522,7 +522,7 @@ class LogarithmReal(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 200 * math.cos(t) * (cmath.sqrt(x+y*1j)).real
+        return 200 * math.cos(t) * (cmath.sqrt(x + y * 1j)).real
 
 
 class Pants(BaseGraph):
@@ -530,7 +530,8 @@ class Pants(BaseGraph):
 
     def func(self, x, y):
         t = self.time_since_start
-        return 275 * math.sin(t) * (cmath.sqrt(x+y*1j)).imag
+        return 275 * math.sin(t) * (cmath.sqrt(x + y * 1j)).imag
+
 
 # HARDCODED CLONES
 
@@ -620,9 +621,9 @@ class CoolSphere(PerDroneStep):
         else:
             f = self.max_frequency
 
-        z = (index - 31.5) / 32 # For 64 bots :^)
-        x = math.sqrt(1 - z**2) * math.cos(z * f)
-        y = math.sqrt(1 - z**2) * math.sin(z * f)
+        z = (index - 31.5) / 32  # For 64 bots :^)
+        x = math.sqrt(1 - z ** 2) * math.cos(z * f)
+        y = math.sqrt(1 - z ** 2) * math.sin(z * f)
 
         target = vec3(x, y, z) * self.radius
         target[2] += self.height

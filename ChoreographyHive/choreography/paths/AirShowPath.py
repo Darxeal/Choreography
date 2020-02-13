@@ -1,5 +1,5 @@
 from rlutilities.linear_algebra import vec3
-from choreography.utils import BezierPath
+from choreography.utils.bezier import BezierPath
 
 zero = BezierPath([
     vec3(0, -4000, 1750),
@@ -177,7 +177,6 @@ eight = BezierPath([
     vec3(-1035, -94, 1763),
     vec3(-1050, -790, 1750),
 ])
-
 
 
 def get_paths():

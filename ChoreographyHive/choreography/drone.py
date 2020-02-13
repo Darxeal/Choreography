@@ -5,7 +5,7 @@ from rlutilities.linear_algebra import vec3, mat3, euler_to_rotation
 
 from rlutilities.mechanics import Aerial, AerialTurn
 
-from choreography.hover import Hover
+from choreography.utils.hover import Hover
 
 
 class Drone(Car):
@@ -25,7 +25,7 @@ class Drone(Car):
         self.angular_velocity = vector3_to_vec3(game_car.physics.angular_velocity)
         self.boost = game_car.boost
         self.time = packet.game_info.seconds_elapsed
-        self.has_wheel_contact = game_car.has_wheel_contact
+        self.on_ground = game_car.has_wheel_contact
 
         # Reset ctrl every tick.
         self.controls = Input()

@@ -1,18 +1,15 @@
 import math
 from typing import List
 
-from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
+from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, cross
+from rlutilities.simulation import Ball, Input, Curve
 
-from choreography.choreos.AirShowPath import get_paths
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, StateSettingStep, \
-    ParallelStep
-
-from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, mat3, norm, cross
-from rlutilities.simulation import Ball, Input, Curve
-from choreography.utils import BezierPath, direction
+from choreography.group_step import BlindBehaviorStep, StateSettingStep, ParallelStep
+from choreography.paths.AirShowPath import get_paths
+from choreography.utils.vector_math import direction
 
 
 class YeetTheBallOutOfTheUniverse(StateSettingStep):
@@ -116,6 +113,7 @@ class Boost(BlindBehaviorStep):
 
     def set_controls(self, controls: Input):
         controls.boost = True
+
 
 class AirShow(Choreography):
 

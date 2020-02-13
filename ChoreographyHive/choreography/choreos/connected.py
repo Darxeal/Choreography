@@ -3,19 +3,17 @@ from typing import List
 
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
+from rlutilities.linear_algebra import vec2, vec3, euler_to_rotation, rotation, dot, normalize, norm, xy, \
+    axis_to_rotation
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, StepResult, PerDroneStep, \
-    StateSettingStep, TwoTickStateSetStep
-
-from rlutilities.linear_algebra import vec2, vec3, euler_to_rotation, rotation, dot, normalize, norm, xy, axis_to_rotation
-from rlutilities.simulation import Ball, Input
-
+from choreography.group_step import PerDroneStep, TwoTickStateSetStep
 from .examples import YeetTheBallOutOfTheUniverse, Wait
 
+
 class ConnectedChoreo(Choreography):
-    
+
     @staticmethod
     def get_num_bots():
         return 64
@@ -58,6 +56,7 @@ class ConnectedChoreo(Choreography):
             Sphere(),
         ]
 
+
 class FourStacks(TwoTickStateSetStep):
     height = 50
     radius = 3000
@@ -87,6 +86,7 @@ class FourStacks(TwoTickStateSetStep):
             drone.velocity = vec3(0, 0, 0)
             drone.angular_velocity = vec3(0, 0, 0)
 
+
 class ResetAttr(PerDroneStep):
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
@@ -94,6 +94,7 @@ class ResetAttr(PerDroneStep):
         drone.since_jumped = None
         drone.start_pos = None
         drone.sort_phase = 0
+
 
 class ForwardThenQuadHelix(PerDroneStep):
     delay = 0.8
@@ -108,7 +109,7 @@ class ForwardThenQuadHelix(PerDroneStep):
                 drone.controls.throttle = 1.0 if max(abs(drone.velocity[0]), abs(drone.velocity[1])) < 500 else 0.03
 
                 # If near half-line
-                if norm(vec3(0,0,0) - drone.position) < 700:
+                if norm(vec3(0, 0, 0) - drone.position) < 700:
                     drone.since_jumped = 0.0
                     drone.controls.jump = True
 
@@ -119,7 +120,7 @@ class ForwardThenQuadHelix(PerDroneStep):
 
             # HEIGHT
             if drone.since_jumped < 11:
-                height = 150 + drone.since_jumped * 150 # speed of rise
+                height = 150 + drone.since_jumped * 150  # speed of rise
             elif drone.since_jumped < 20:
                 height = 1800 - (drone.since_jumped - 11) * 150
             else:
@@ -136,12 +137,12 @@ class ForwardThenQuadHelix(PerDroneStep):
             elif drone.since_jumped < 20:
                 radius = 300 + (drone.since_jumped - 17) * 100
             else:
-                radius = 400 + drone.since_jumped**3 / 10
+                radius = 400 + drone.since_jumped ** 3 / 10
                 radius = min(radius, 2000)
 
             # ANGLE
             if drone.since_jumped < 11:
-                angle = drone.since_jumped * 0.4 # rotation speed
+                angle = drone.since_jumped * 0.4  # rotation speed
             elif drone.since_jumped < 20:
                 angle = (11 * 0.4) + (drone.since_jumped - 11) * 0.6
             else:
@@ -162,6 +163,7 @@ class ForwardThenQuadHelix(PerDroneStep):
             if drone.since_jumped < 0.05:
                 drone.controls.jump = True
                 drone.controls.boost = False
+
 
 class HelixTransitionToCircle(PerDroneStep):
     duration = 60.0
@@ -185,7 +187,7 @@ class HelixTransitionToCircle(PerDroneStep):
 
         desired_angle = (2 * math.pi / 64) * index
         current_angle = math.atan2(drone.position[1], drone.position[0])
-        if current_angle < 0.0: current_angle += 2 * math.pi # only positive angles
+        if current_angle < 0.0: current_angle += 2 * math.pi  # only positive angles
 
         # Expand radius.
         if current_radius < self.radius - 150:
@@ -201,11 +203,12 @@ class HelixTransitionToCircle(PerDroneStep):
         else:
             target = vec3(dot(rotation(desired_angle), vec2(self.radius, 0)))
             target[2] = self.height
-        
+
         drone.hover.up = normalize(drone.position)
         drone.hover.target = target
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
 
 class SortToCircle(PerDroneStep):
     duration = 60.0
@@ -224,17 +227,17 @@ class SortToCircle(PerDroneStep):
             self.finished = True
         if drone.sort_phase != 3:
             # Will be set to False if any is not in phase 3.
-            self.finished = False 
+            self.finished = False
 
-        # It's my time!
+            # It's my time!
         if self.time_since_start > 0.5 + index * self.delay:
 
             desired_angle = (2 * math.pi / 64) * index
 
             # current_radius = norm(vec2(drone.position))
             current_angle = math.atan2(drone.position[1], drone.position[0])
-            if current_angle < 0.0: current_angle += 2 * math.pi # only positive angles
-                
+            if current_angle < 0.0: current_angle += 2 * math.pi  # only positive angles
+
             # Rotate to correct angle.
             if drone.sort_phase == 1:
                 # if index in range(64)[::8]: print(index, current_angle, desired_angle)
@@ -242,7 +245,7 @@ class SortToCircle(PerDroneStep):
                     drone.sort_phase = 2
                 target = dot(rotation(current_angle + 0.4), vec2(self.radius - 400, 0))
                 target = vec3(target)
-                target[2] = self.height + (180 * index//16)
+                target[2] = self.height + (180 * index // 16)
 
             # Height and final corrections.
             elif drone.sort_phase == 2:
@@ -251,7 +254,7 @@ class SortToCircle(PerDroneStep):
                 if norm(drone.position - target) < 200:
                     drone.sort_phase = 3
 
-                target[2] = (4*drone.position[2] + self.height) / 5
+                target[2] = (4 * drone.position[2] + self.height) / 5
 
             elif drone.sort_phase == 3:
                 target = vec3(dot(rotation(desired_angle), vec2(self.radius, 0)))
@@ -268,10 +271,11 @@ class SortToCircle(PerDroneStep):
         drone.controls = drone.hover.controls
 
         # If any bot got lost, now they have a chance to recover.
-        if drone.has_wheel_contact:
+        if drone.on_ground:
             drone.controls.jump = True
         else:
             drone.controls.jump = False
+
 
 class ResetCircle(TwoTickStateSetStep):
     radius = 1800
@@ -283,8 +287,9 @@ class ResetCircle(TwoTickStateSetStep):
             drone.position = vec3(dot(rotation(angle), vec2(self.radius, 0)))
             drone.position[2] = self.height
             drone.velocity = vec3(0, 0, 0)
-            drone.orientation = euler_to_rotation(vec3(math.pi/2, angle, math.pi))
+            drone.orientation = euler_to_rotation(vec3(math.pi / 2, angle, math.pi))
             drone.angular_velocity = vec3(0, 0, 0)
+
 
 class StationaryCircle(PerDroneStep):
     duration = 2.0
@@ -303,10 +308,11 @@ class StationaryCircle(PerDroneStep):
         drone.controls = drone.hover.controls
 
         # If any bot got lost, now they have a chance to recover.
-        if drone.has_wheel_contact:
+        if drone.on_ground:
             drone.controls.jump = True
         else:
             drone.controls.jump = False
+
 
 class SpinUp(PerDroneStep):
     duration = 5.0
@@ -315,7 +321,7 @@ class SpinUp(PerDroneStep):
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         radius = 1800 - 150 * self.time_since_start
         angle = self.time_since_start * (math.pi / 5)
-        angle += (2 * math.pi / 64) * index        
+        angle += (2 * math.pi / 64) * index
         target = vec3(dot(rotation(angle), vec2(radius, 0)))
         target[2] = self.height
 
@@ -323,6 +329,7 @@ class SpinUp(PerDroneStep):
         drone.hover.target = target
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
 
 class SpinDown(PerDroneStep):
     duration = 5.0
@@ -339,6 +346,7 @@ class SpinDown(PerDroneStep):
         drone.hover.target = target
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
 
 class SeparateIntoFourGroups(PerDroneStep):
     duration = 5.0
@@ -365,14 +373,15 @@ class SeparateIntoFourGroups(PerDroneStep):
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
 
+
 class SmallerCirclesStart(PerDroneStep):
     duration = 7.5
     small_radius = 600
     big_radius = 2500
     height = 800
-    
+
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-            
+
         # Get centre of small circle.
         direction_angle = (math.pi / 4) + ((math.pi / 2) * (index // 16))
         centre = vec3(dot(rotation(direction_angle), vec2(1, 0))) * self.big_radius
@@ -394,10 +403,11 @@ class SmallerCirclesStart(PerDroneStep):
         drone.controls = drone.hover.controls
 
         # If any bot got lost, now they have a chance to recover.
-        if drone.has_wheel_contact:
+        if drone.on_ground:
             drone.controls.jump = True
         else:
             drone.controls.jump = False
+
 
 class SmallerCirclesToCylinder(PerDroneStep):
     small_radius = 600
@@ -425,7 +435,7 @@ class SmallerCirclesToCylinder(PerDroneStep):
         angle += self.time_since_start * self.spin
         target = vec3(dot(rotation(angle), vec2(self.small_radius, 0)))
         target += centre
-        
+
         # Different heights.
         target[2] += (index // 16 - 2) * self.height_diff
 
@@ -434,6 +444,7 @@ class SmallerCirclesToCylinder(PerDroneStep):
         drone.hover.target = target
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
 
 class SpinInCylinder(PerDroneStep):
     duration = 8.0
@@ -450,15 +461,17 @@ class SpinInCylinder(PerDroneStep):
     spin = 0.4
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        
         drone.hover.up = normalize(drone.position)
-        rotation = axis_to_rotation(vec3(0, 0, self.spin * (-1)**(index // 16)))
-        position_on_circle = normalize(xy(drone.position)) * (self.radius + self.radius_increase * self.time_since_start)
+        rotation = axis_to_rotation(vec3(0, 0, self.spin * (-1) ** (index // 16)))
+        position_on_circle = normalize(xy(drone.position)) * (
+                self.radius + self.radius_increase * self.time_since_start)
         drone.hover.target = dot(rotation, position_on_circle)
         drone.hover.target[2] = self.height + self.height_increase * self.time_since_start
-        drone.hover.target[2] += (index // 16 - 2) * (self.height_diff + self.height_diff_increase * self.time_since_start)
+        drone.hover.target[2] += (index // 16 - 2) * (
+                self.height_diff + self.height_diff_increase * self.time_since_start)
         drone.hover.step(self.dt)
         drone.controls = drone.hover.controls
+
 
 class Sphere(PerDroneStep):
     radius = 600
@@ -466,9 +479,9 @@ class Sphere(PerDroneStep):
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         # Just ask me in discord about this.
-        layer = (2*(index//16) + (index%2) - 3.5) / 4
+        layer = (2 * (index // 16) + (index % 2) - 3.5) / 4
         height = self.height + layer * self.radius
-        radius = math.sqrt(1 - layer**2) * self.radius
+        radius = math.sqrt(1 - layer ** 2) * self.radius
 
         spin = 0 if self.time_since_start < 3.0 else 0.5
 

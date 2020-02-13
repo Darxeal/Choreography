@@ -7,10 +7,12 @@ from rlbot.utils.structures.game_interface import GameInterface
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 import time
 import keyboard
-from choreography.choreos.dragons import PURPLE_DRAGON_PATH, BLUE_DRAGON_PATH, BezierPath
 from rlutilities.simulation import Curve
 
 from rlutilities.linear_algebra import vec3, dot, axis_to_rotation
+
+from choreography.paths.dragon_paths import BLUE_DRAGON_PATH, PURPLE_DRAGON_PATH
+from choreography.utils.bezier import BezierPath
 
 
 class BezierPathEditor:

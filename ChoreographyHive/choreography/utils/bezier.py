@@ -1,15 +1,9 @@
 import math
 from typing import List
 
-from rlutilities.linear_algebra import vec3, norm, normalize, clip, dot
+from rlutilities.linear_algebra import vec3, clip, dot, normalize
 
-
-def distance(position: vec3, target: vec3) -> float:
-    return norm(position - target)
-
-
-def direction(source: vec3, target: vec3) -> vec3:
-    return normalize(target - source)
+from choreography.utils.vector_math import direction, distance
 
 
 # stolen from RLU (It wasn't exposed to python and I'm too lazy to recompile it)

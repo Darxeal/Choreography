@@ -8,11 +8,12 @@ from rlbot.utils.structures.game_interface import GameInterface
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 import time
 import keyboard
-from choreography.choreos.dragons import BezierPath
 from rlutilities.simulation import Curve
-from choreography.choreos.AirShowPath import three, five, seven
 
 from rlutilities.linear_algebra import vec3, dot, axis_to_rotation
+
+from choreography.paths.AirShowPath import five, three, seven
+from choreography.utils.bezier import BezierPath
 
 
 class BezierPathEditor:

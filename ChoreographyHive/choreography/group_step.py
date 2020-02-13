@@ -175,7 +175,7 @@ class StateSettingStep(GroupStep):
 
 # Use this when trying to state set >48 drones.
 class TwoTickStateSetStep(StateSettingStep):
-    tick = 0 # Counting ticks
+    tick = 0  # Counting ticks
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
         self.tick += 1
@@ -198,7 +198,7 @@ class TwoTickStateSetStep(StateSettingStep):
             )
         )
         # State setting only half of the drones per tick
-        for drone in drones[self.tick%2::2]:
+        for drone in drones[self.tick % 2::2]:
             state.cars[drone.id] = CarState(
                 Physics(
                     location=vec3_to_vector3(drone.position),

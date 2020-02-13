@@ -1,4 +1,4 @@
-from typing import Set, List
+from typing import List
 
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
