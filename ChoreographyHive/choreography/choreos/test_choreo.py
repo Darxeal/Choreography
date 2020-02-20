@@ -77,7 +77,7 @@ class Dickbutt(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            Drawing('dickbutt.png', origin=vec3(-1000, 1500, 18)),
+            Drawing('ChoreographyHive/assets/dickbutt.png', origin=vec3(-1000, 1500, 18)),
             Wait(1.0)
         ]
 
