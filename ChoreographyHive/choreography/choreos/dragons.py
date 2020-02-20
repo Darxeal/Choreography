@@ -1,6 +1,7 @@
 from math import pi
 from typing import List
 
+from rlbot.utils.rendering.rendering_manager import RenderingManager
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlutilities.linear_algebra import vec3, dot, look_at, axis_to_rotation, cross
 from rlutilities.simulation import Ball, Input, Curve
@@ -26,6 +27,7 @@ class RingsSetup(StateSettingStep):
             sign = 1 if shifted_index >= 0 else -1
             if sign > 0:
                 shifted_index = 15 - shifted_index
+
             drone.position = vec3(shifted_index * 200 + sign * 800, -600 * sign, 20)
             drone.velocity = vec3(0, 0, 0)
             drone.angular_velocity = vec3(0, 0, 0)
@@ -46,22 +48,28 @@ TOTAL_SPEED = 0.7
 class Dragon(StateSettingStep):
     duration = 65.0 / TOTAL_SPEED
     distance_between_body_parts = 300
-    curve: Curve = None
+    path: Curve = None
+    RENDER_PATH = False
 
     def set_drone_states(self, drones: List[Drone]):
-        for drone in drones:
-            t = self.time_since_start / self.duration * self.curve.length
-            t -= self.distance_between_body_parts * (drone.id - self.target_indexes[0])
+        # get the length of the path from start to the dragons's head (first bot)
+        head_t = self.time_since_start / self.duration * self.path.length
 
-            if t < 0:
+        for drone in drones:
+            # offset the other body parts
+            drone_t = head_t - self.distance_between_body_parts * (drone.id - self.target_indexes[0])
+
+            # if we're not on the path yet, don't do any state setting
+            if drone_t < 0:
                 continue
 
-            t = self.curve.length - t
+            t = self.path.length - drone_t  # because Curve.point_at's argument means distance to end
 
-            pos = self.curve.point_at(t)
-            pos_ahead = self.curve.point_at(t - 500)
-            pos_behind = self.curve.point_at(t + 300)
+            pos = self.path.point_at(t)
+            pos_ahead = self.path.point_at(t - 500)
+            pos_behind = self.path.point_at(t + 300)
 
+            # figure out the orientation of the body part
             facing_direction = direction(pos_behind, pos)
             target_left = cross(facing_direction, direction(pos, pos_ahead))
             target_up = cross(target_left, facing_direction)
@@ -69,47 +77,49 @@ class Dragon(StateSettingStep):
             target_orientation = look_at(facing_direction, up)
 
             drone.position = pos_behind
-            drone.velocity = facing_direction * (self.curve.length / self.duration)
-            drone.angular_velocity = vec3(0, 0, 0)
+            drone.velocity = facing_direction * (self.path.length / self.duration)
+            drone.angular_velocity = vec3(0, 0, 0)  # TODO: setting correct angular velocity could help with replays
             drone.orientation = target_orientation
 
-    # def render(self, renderer: RenderingManager):
-    #     renderer.draw_polyline_3d(self.curve.points[::5], renderer.white())
+    def render(self, renderer: RenderingManager):
+        if self.RENDER_PATH:
+            renderer.draw_polyline_3d(self.path.points[::5], renderer.white())
 
 
 class BlueDragon(Dragon):
-    curve = Curve(BLUE_DRAGON_PATH.to_points(2000))
+    path = Curve(BLUE_DRAGON_PATH.to_points(2000))
     target_indexes = range(0, 5)
 
 
 class PurpleDragon(Dragon):
-    curve = Curve(PURPLE_DRAGON_PATH.to_points(2000))
+    path = Curve(PURPLE_DRAGON_PATH.to_points(2000))
     target_indexes = range(5, 10)
 
 
 class RingOfFire(PerDroneStep):
     ring_radius = 500
-    rotation_radius = 2200
-    height = 1400
-    starting_rotation: float = None
-    rotation_start_delay = 20 / TOTAL_SPEED
-    rotation_speed = 0.45 * TOTAL_SPEED
+    orbit_radius = 2200
+    orbit_center = vec3(0, 0, 1400)
+    starting_orbit_rotation: float = None
+    orbit_start_delay = 20 / TOTAL_SPEED
+    orbit_speed = 0.45 * TOTAL_SPEED
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        rotation = self.starting_rotation + max(0,
-                                                self.time_since_start - self.rotation_start_delay) * self.rotation_speed
-        v = dot(axis_to_rotation(vec3(0, 0, 1) * rotation), vec3(1, 0, 0))
-        center = vec3(0, 0, self.height) + v * self.rotation_radius
-        facing = cross(v, vec3(0, 0, 1))
+        orbit_t = max(0, self.time_since_start - self.orbit_start_delay)
+        orbit_rotation = self.starting_orbit_rotation + orbit_t * self.orbit_speed
 
-        n = len(self.target_indexes)
+        direction_from_center = dot(axis_to_rotation(vec3(0, 0, 1) * orbit_rotation), vec3(1, 0, 0))
+        ring_center = self.orbit_center + direction_from_center * self.orbit_radius
+        ring_facing_direction = cross(direction_from_center, vec3(0, 0, 1))
+
+        bot_count = len(self.target_indexes)
         i = index - self.target_indexes[0]
-        angle = i / n * pi * 2
-        pos = center + dot(vec3(0, 0, 1), axis_to_rotation(facing * angle)) * self.ring_radius
+        angle = i / bot_count * pi * 2
+        pos = ring_center + dot(vec3(0, 0, 1), axis_to_rotation(ring_facing_direction * angle)) * self.ring_radius
 
-        if pos[2] > self.height + self.ring_radius - self.time_since_start * 200:
+        if pos[2] > self.orbit_center[2] + self.ring_radius - self.time_since_start * 200:
             drone.hover.target = pos
-            drone.hover.up = facing
+            drone.hover.up = ring_facing_direction
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
             drone.controls.jump = True
@@ -117,15 +127,15 @@ class RingOfFire(PerDroneStep):
 
 class Ring1(RingOfFire):
     target_indexes = range(10, 25)
-    starting_rotation = pi
+    starting_orbit_rotation = pi
 
 
 class Ring2(RingOfFire):
     target_indexes = range(25, 40)
-    starting_rotation = 0
+    starting_orbit_rotation = 0
 
 
-class Boost(BlindBehaviorStep):
+class DragonBoost(BlindBehaviorStep):
     target_indexes = range(0, 10)
 
     def set_controls(self, controls: Input):
@@ -162,7 +172,7 @@ class DragonsChoreography(Choreography):
             ParallelStep([
                 BlueDragon(),
                 PurpleDragon(),
-                Boost(),
+                DragonBoost(),
                 Ring1(),
                 Ring2()
             ]),
