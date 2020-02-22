@@ -8,9 +8,11 @@ from rlutilities.simulation import Ball, Input, Curve
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, StateSettingStep, ParallelStep, PerDroneStep
+from choreography.group_step import BlindBehaviorStep, StateSettingStep, ParallelStep, DroneListStep
 from choreography.paths.dragon_paths import BLUE_DRAGON_PATH, PURPLE_DRAGON_PATH
 from choreography.utils.vector_math import direction
+
+TOTAL_SPEED = 0.7
 
 
 class RingsSetup(StateSettingStep):
@@ -42,9 +44,6 @@ class HideDragons(StateSettingStep):
             drone.position = vec3(i * 100, 6000, 0)
 
 
-TOTAL_SPEED = 0.7
-
-
 class Dragon(StateSettingStep):
     duration = 65.0 / TOTAL_SPEED
     distance_between_body_parts = 300
@@ -57,7 +56,7 @@ class Dragon(StateSettingStep):
 
         for drone in drones:
             # offset the other body parts
-            drone_t = head_t - self.distance_between_body_parts * (drone.id - self.target_indexes[0])
+            drone_t = head_t - self.distance_between_body_parts * (drone.id - drones[0].id)
 
             # if we're not on the path yet, don't do any state setting
             if drone_t < 0:
@@ -96,7 +95,7 @@ class PurpleDragon(Dragon):
     target_indexes = range(5, 10)
 
 
-class RingOfFire(PerDroneStep):
+class RingOfFire(DroneListStep):
     ring_radius = 500
     orbit_radius = 2200
     orbit_center = vec3(0, 0, 1400)
@@ -104,7 +103,7 @@ class RingOfFire(PerDroneStep):
     orbit_start_delay = 20 / TOTAL_SPEED
     orbit_speed = 0.45 * TOTAL_SPEED
 
-    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+    def step(self, packet: GameTickPacket, drones: List[Drone]):
         orbit_t = max(0, self.time_since_start - self.orbit_start_delay)
         orbit_rotation = self.starting_orbit_rotation + orbit_t * self.orbit_speed
 
@@ -112,17 +111,17 @@ class RingOfFire(PerDroneStep):
         ring_center = self.orbit_center + direction_from_center * self.orbit_radius
         ring_facing_direction = cross(direction_from_center, vec3(0, 0, 1))
 
-        bot_count = len(self.target_indexes)
-        i = index - self.target_indexes[0]
-        angle = i / bot_count * pi * 2
-        pos = ring_center + dot(vec3(0, 0, 1), axis_to_rotation(ring_facing_direction * angle)) * self.ring_radius
+        for drone in drones:
+            i = drone.id - drones[0].id
+            angle = i / len(drones) * pi * 2
+            pos = ring_center + dot(vec3(0, 0, 1), axis_to_rotation(ring_facing_direction * angle)) * self.ring_radius
 
-        if pos[2] > self.orbit_center[2] + self.ring_radius - self.time_since_start * 200:
-            drone.hover.target = pos
-            drone.hover.up = ring_facing_direction
-            drone.hover.step(self.dt)
-            drone.controls = drone.hover.controls
-            drone.controls.jump = True
+            if pos[2] > self.orbit_center[2] + self.ring_radius - self.time_since_start * 200:
+                drone.hover.target = pos
+                drone.hover.up = ring_facing_direction
+                drone.hover.step(self.dt)
+                drone.controls = drone.hover.controls
+                drone.controls.jump = True
 
 
 class Ring1(RingOfFire):
