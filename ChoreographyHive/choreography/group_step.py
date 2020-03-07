@@ -78,6 +78,9 @@ class CompositeStep(GroupStep):
             self.current_step_index += 1
         return StepResult(self.current_step_index == len(self.steps))
 
+    def render(self, renderer: RenderingManager):
+        self.steps[self.current_step_index].render(renderer)
+
 
 class DroneListStep(GroupStep):
     """
