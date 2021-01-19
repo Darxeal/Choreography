@@ -11,6 +11,7 @@ from os.path import dirname, basename, isfile, join
 import glob
 
 from rlbot.matchconfig.conversions import parse_match_config
+from rlbot.matchconfig.match_config import PlayerConfig
 from rlbot.parsing.agent_config_parser import load_bot_appearance, create_looks_configurations
 from rlbot.parsing.bot_config_bundle import get_bot_config_bundle
 from rlbot.parsing.directory_scanner import scan_directory_for_bot_configs
@@ -84,9 +85,12 @@ class RLBotChoreography:
         player_config = match_config.player_configs[0]
         match_config.player_configs.clear()
         for i in range(self.min_bots):
-            copied = copy.copy(player_config)
+            copied = PlayerConfig()
             copied.name = names[i]
             copied.team = teams[i]
+            copied.bot = player_config.bot
+            copied.rlbot_controlled = player_config.rlbot_controlled
+            copied.config_path = player_config.config_path
             copied.loadout_config = load_bot_appearance(looks_configs[i], copied.team)
             match_config.player_configs.append(copied)
 
