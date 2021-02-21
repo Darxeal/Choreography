@@ -19,21 +19,11 @@ class YeetTheBallOutOfTheUniverse(StateSettingStep):
         ball.angular_velocity = vec3(0, 0, 0)
 
 
-class FormATriangle(StateSettingStep):
-    center = vec3(0, -4000, 0)
-
-    def set_drone_states(self, drones: List[Drone]):
-        for i, drone in enumerate(drones):
-            angle = math.pi / 2
-            rot = rotation(angle)
-            v = vec3(dot(rot, vec2(1, 0)))
-            v[2] = 0.25
-            if i % 2 == 0:
-                drone.position = self.center + vec3(math.floor(i / 2) * 250, math.floor(i / 2) * -250, 1750)
-            else:
-                drone.position = self.center + vec3((1 + math.floor(i / 2)) * -250, (1 + math.floor(i / 2)) * -250,
-                                                    1750)
-            print(i, drone.position)
+class Score(StateSettingStep):
+    def set_ball_state(self, ball: Ball):
+        ball.position = vec3(0, 5120, 500)
+        ball.velocity = vec3(0, 5000, 0)
+        ball.angular_velocity = vec3(0, 0, 0)
 
 
 class Fly(StateSettingStep):
@@ -156,17 +146,6 @@ class AirShow(Choreography):
     def generate_sequence(self):
         self.sequence = [
             YeetTheBallOutOfTheUniverse(),
-            FormATriangle(),
-            ParallelStep([
-                bot0(),
-                bot1(),
-                bot2(),
-                bot3(),
-                bot4(),
-                bot5(),
-                bot6(),
-                bot7(),
-                bot8(),
-                Boost()
-            ]),
+            bot0(),
+            Score(),
         ]
