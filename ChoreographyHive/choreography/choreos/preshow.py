@@ -27,7 +27,7 @@ class Preshow(Choreography):
 
     @staticmethod
     def get_teams(num_bots: int) -> List[int]:
-        teams = [0, 1, 1] * (num_bots // 3)
+        teams = [0, 1, 0] * (num_bots // 3)
         return teams
 
     @staticmethod
@@ -40,16 +40,16 @@ class Preshow(Choreography):
 
     def generate_sequence(self):
         self.sequence = [
-            # BraidSetup(),
-            # Braid(),
-            # Wait(1.5),
-            # Transition(),
+            BraidSetup(),
+            Braid(),
+            Wait(1.0),
+            Transition(),
             DiscSetup(),
             Disc()
         ]
 
 
-CENTRE = vec3(-15000, -15000, -500)
+CENTRE = vec3(-20000, -25000, -500)
 
 def braid(t):
     t %= 2 * pi
@@ -70,8 +70,8 @@ class BraidSetup(TwoTickStateSetStep):
             drone.position = CENTRE + braid(theta) * self.radius
             drone.position[2] += index * self.height 
             drone.orientation = look_at(vec3(0, 0, 1), normalize(drone.position - CENTRE))
-            drone.velocity = vec3(0, 0, 0)
-            drone.angular_velocity = vec3(0, 0, 700)
+            drone.velocity = vec3(0, 0, 300)
+            drone.angular_velocity = vec3(0, 0, 0)
 
 
 class Braid(PerDroneStep):
@@ -101,7 +101,7 @@ def disc(i):
 
 
 class Transition(PerDroneStep):
-    duration = 20.0
+    duration = 15.0
     radius = 2000
     ori = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
 
@@ -110,8 +110,8 @@ class Transition(PerDroneStep):
         target = CENTRE + pos
         target[2] += 8000
 
-        if norm(drone.position - target) > 600:
-            target = drone.position + 500 * normalize(target - drone.position)
+        if norm(drone.position - target) > 400:
+            target = drone.position + 300 * normalize(target - drone.position)
 
         drone.hover.up = normalize(drone.position - CENTRE)
         drone.hover.target = target
@@ -135,23 +135,24 @@ class DiscSetup(TwoTickStateSetStep):
 
 
 class Disc(DroneListStep):
-    duration = 60.0
+    duration = 30.0
     radius = 2000
     start_pos = CENTRE + vec3(0, 0, 8000)
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         ori = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
-        ori = dot(axis_to_rotation(vec3(1, 0, 0) * self.time_since_start / 7), ori)
-        ori = dot(axis_to_rotation(vec3(0, 1, 0) * self.time_since_start / 5), ori)
+        ori = dot(axis_to_rotation(vec3(1, 0, 0) * self.time_since_start / 5), ori)
+        # ori = dot(axis_to_rotation(vec3(0, 1, 0) * self.time_since_start / 4), ori)
         ori = dot(axis_to_rotation(vec3(0, 0, 1) * self.time_since_start / 3), ori)
-        ori = dot(axis_to_rotation(vec3(1, 0, 0) * self.time_since_start / 8), ori)
 
-        centre = self.start_pos + vec3(0, -500, 0) * self.time_since_start
+        centre = self.start_pos + vec3(0, -700, 0) * self.time_since_start
+
+        r = self.radius + 500 * sin(self.time_since_start / 5)
 
         for index, drone in enumerate(drones):
-            pos = dot(ori, self.radius * disc(index))
+            pos = dot(ori, r * disc(index))
             target = centre + pos
-            drone.hover.up = normalize(drone.position - CENTRE)
+            drone.hover.up = normalize(drone.position - centre)
             drone.hover.target = target
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
