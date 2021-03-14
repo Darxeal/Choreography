@@ -27,7 +27,7 @@ class Preshow(Choreography):
 
     @staticmethod
     def get_teams(num_bots: int) -> List[int]:
-        teams = [0, 1, 0] * (num_bots // 3)
+        teams = [0, 1, 1] * (num_bots // 3)
         return teams
 
     @staticmethod
