@@ -21,12 +21,12 @@ class LookUp(Choreography):
 
     @staticmethod
     def get_appearances(num_bots: int) -> List[str]:
-        appearances = ['braid1.cfg'] * 32 + ['braid2.cfg'] * 32
+        appearances = ['rings.cfg'] * 64
         return appearances
 
     @staticmethod
     def get_teams(num_bots: int) -> List[int]:
-        teams = [1] * 64
+        teams = [0] * 32 + [1] * 32
         return teams
 
     @staticmethod
@@ -42,7 +42,9 @@ class LookUp(Choreography):
         ]
 
 
-CENTRE = vec3(0, 0, 5000)
+CENTRE = vec3(4_000, 43_000, 6_000)
+END = vec3(8_000, 36_500, 7_500)
+ROTATION = 2.0
 ANGLE = 0.1
 TILT = 0.2
 DIST = 800
@@ -55,16 +57,17 @@ def circle(angle):
 
 class RingSetup(TwoTickStateSetStep):
     def set_drone_states(self, drones: List[Drone]):
+        rot = dot(axis_to_rotation(vec3(0, 0, 1) * ROTATION), look_at(vec3(1, 0, 0), vec3(0, 0, 1)))
         for index, drone in enumerate(drones):
             o = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
             if index < 32:
                 o = dot(axis_to_rotation(vec3(0, 1, 0) * ANGLE), o)
                 o = dot(axis_to_rotation(vec3(1, 0, 0) * TILT), o)
-                centre = CENTRE + vec3(DIST/2, 0, 0)
+                centre = CENTRE + dot(rot, vec3(DIST/2, 0, 0))
             else:
                 o = dot(axis_to_rotation(vec3(0, -1, 0) * ANGLE), o)
                 o = dot(axis_to_rotation(vec3(-1, 0, 0) * TILT), o)
-                centre = CENTRE + vec3(-DIST/2, 0, 0)
+                centre = CENTRE + dot(rot, vec3(-DIST/2, 0, 0))
 
             pos = centre + dot(o, RADIUS * circle((index%32)/32 * 2 * pi))
             drone.orientation = look_at(vec3(0, 0, 1), normalize(pos - centre))
@@ -73,24 +76,26 @@ class RingSetup(TwoTickStateSetStep):
 
 
 class Rings(DroneListStep):
-    duration = 30.0
+    duration = 20.0
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
+        motion_dir = (END - CENTRE) / self.duration
+        rot = dot(axis_to_rotation(vec3(0, 0, 1) * ROTATION), look_at(vec3(1, 0, 0), vec3(0, 0, 1)))
         for index, drone in enumerate(drones):
             o = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
-            centre = CENTRE + vec3(0, 300, 0) * self.time_since_start
+            centre = CENTRE + motion_dir * self.time_since_start
             if index < 32:
                 o = dot(axis_to_rotation(vec3(0, 0, 1) * self.time_since_start * -0.6), o)
                 o = dot(axis_to_rotation(vec3(0, 1, 0) * ANGLE), o)
                 o = dot(axis_to_rotation(vec3(1, 0, 0) * TILT), o)
-                centre += vec3(DIST/2, 0, 0)
+                centre += dot(rot, vec3(DIST/2, 0, 0))
             else:
                 o = dot(axis_to_rotation(vec3(0, 0, -1) * self.time_since_start * 0.6), o)
                 o = dot(axis_to_rotation(vec3(0, -1, 0) * ANGLE), o)
                 o = dot(axis_to_rotation(vec3(-1, 0, 0) * TILT), o)
-                centre += vec3(-DIST/2, 0, 0)
+                centre += dot(rot, vec3(-DIST/2, 0, 0))
 
-            drone.hover.up = normalize(centre - drone.position)
+            drone.hover.up = normalize(drone.position - centre)
             drone.hover.target = centre + dot(o, RADIUS * circle((index%32)/32 * 2 * pi))
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
