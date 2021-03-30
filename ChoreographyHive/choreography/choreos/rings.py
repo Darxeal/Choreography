@@ -38,12 +38,13 @@ class LookUp(Choreography):
         self.sequence = [
             Wait(1.0),
             RingSetup(),
-            Rings()
+            Rings(),
+            HoldBoost(5.0)
         ]
 
 
-CENTRE = vec3(4_000, 43_000, 6_000)
-END = vec3(8_000, 36_500, 7_500)
+CENTRE = vec3(-4000, 50_000, 4_000)
+END = vec3(500, 44_500, 5_000)
 ROTATION = 2.0
 ANGLE = 0.1
 TILT = 0.2
@@ -57,19 +58,26 @@ def circle(angle):
 
 class RingSetup(TwoTickStateSetStep):
     def set_drone_states(self, drones: List[Drone]):
-        rot = dot(axis_to_rotation(vec3(0, 0, 1) * ROTATION), look_at(vec3(1, 0, 0), vec3(0, 0, 1)))
-        for index, drone in enumerate(drones):
-            o = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
-            if index < 32:
-                o = dot(axis_to_rotation(vec3(0, 1, 0) * ANGLE), o)
-                o = dot(axis_to_rotation(vec3(1, 0, 0) * TILT), o)
-                centre = CENTRE + dot(rot, vec3(DIST/2, 0, 0))
-            else:
-                o = dot(axis_to_rotation(vec3(0, -1, 0) * ANGLE), o)
-                o = dot(axis_to_rotation(vec3(-1, 0, 0) * TILT), o)
-                centre = CENTRE + dot(rot, vec3(-DIST/2, 0, 0))
 
-            pos = centre + dot(o, RADIUS * circle((index%32)/32 * 2 * pi))
+        eyes = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
+        rot = dot(axis_to_rotation(vec3(0, 0, 1) * ROTATION), eyes)
+
+        ring1_o = dot(axis_to_rotation(vec3(0, 1, 0) * ANGLE), eyes)
+        ring1_o = dot(axis_to_rotation(vec3(1, 0, 0) * TILT), ring1_o)
+        ring1_c = CENTRE + dot(rot, vec3(DIST/2, 0, 0))
+
+        ring2_o = dot(axis_to_rotation(vec3(0, -1, 0) * ANGLE), eyes)
+        ring2_o = dot(axis_to_rotation(vec3(-1, 0, 0) * TILT), ring2_o)
+        ring2_c = CENTRE + dot(rot, vec3(-DIST/2, 0, 0))
+
+        for index, drone in enumerate(drones):
+            if index < 32:
+                centre = ring1_c
+                pos = ring1_c + dot(ring1_o, RADIUS * circle((index)/32 * 2 * pi))
+            else:
+                centre = ring2_c
+                pos = ring2_c + dot(ring2_o, RADIUS * circle((index-32)/32 * 2 * pi))
+
             drone.orientation = look_at(vec3(0, 0, 1), normalize(pos - centre))
             drone.position = pos
             drone.velocity = vec3(0, 0, 0)
@@ -80,22 +88,35 @@ class Rings(DroneListStep):
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         motion_dir = (END - CENTRE) / self.duration
-        rot = dot(axis_to_rotation(vec3(0, 0, 1) * ROTATION), look_at(vec3(1, 0, 0), vec3(0, 0, 1)))
-        for index, drone in enumerate(drones):
-            o = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
-            centre = CENTRE + motion_dir * self.time_since_start
-            if index < 32:
-                o = dot(axis_to_rotation(vec3(0, 0, 1) * self.time_since_start * -0.6), o)
-                o = dot(axis_to_rotation(vec3(0, 1, 0) * ANGLE), o)
-                o = dot(axis_to_rotation(vec3(1, 0, 0) * TILT), o)
-                centre += dot(rot, vec3(DIST/2, 0, 0))
-            else:
-                o = dot(axis_to_rotation(vec3(0, 0, -1) * self.time_since_start * 0.6), o)
-                o = dot(axis_to_rotation(vec3(0, -1, 0) * ANGLE), o)
-                o = dot(axis_to_rotation(vec3(-1, 0, 0) * TILT), o)
-                centre += dot(rot, vec3(-DIST/2, 0, 0))
 
-            drone.hover.up = normalize(drone.position - centre)
-            drone.hover.target = centre + dot(o, RADIUS * circle((index%32)/32 * 2 * pi))
+        eyes = look_at(vec3(1, 0, 0), vec3(0, 0, 1))
+        rot = dot(axis_to_rotation(vec3(0, 0, 1) * ROTATION), eyes)
+        center = CENTRE + motion_dir * self.time_since_start
+
+        ring1_o = dot(axis_to_rotation(vec3(0, 0, 1) * self.time_since_start * -0.6), eyes)
+        ring1_o = dot(axis_to_rotation(vec3(0, 1, 0) * ANGLE), ring1_o)
+        ring1_o = dot(axis_to_rotation(vec3(1, 0, 0) * TILT), ring1_o)
+        ring1_c = center + dot(rot, vec3(DIST/2, 0, 0))
+
+        ring2_o = dot(axis_to_rotation(vec3(0, 0, 1) * self.time_since_start * -0.6), eyes)
+        ring2_o = dot(axis_to_rotation(vec3(0, -1, 0) * ANGLE), ring2_o)
+        ring2_o = dot(axis_to_rotation(vec3(-1, 0, 0) * TILT), ring2_o)
+        ring2_c = center + dot(rot, vec3(-DIST/2, 0, 0))
+
+        for index, drone in enumerate(drones):
+            if index < 32:
+                drone.hover.target = ring1_c + dot(ring1_o, RADIUS * circle((index)/32 * 2 * pi))
+                drone.hover.up = normalize(drone.position - ring1_c)
+            else:
+                drone.hover.target = ring2_c + dot(ring2_o, RADIUS * circle((index-32)/32 * 2 * pi))
+                drone.hover.up = normalize(drone.position - ring2_c)
+
             drone.hover.step(self.dt)
             drone.controls = drone.hover.controls
+
+class HoldBoost(PerDroneStep):
+    def __init__(self, duration=1.0):
+        super().__init__()
+        self.duration = duration
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        drone.controls.boost = True
