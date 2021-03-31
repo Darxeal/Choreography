@@ -20,7 +20,7 @@ class Flyby(Choreography):
 
     @staticmethod
     def get_num_bots():
-        return 7
+        return 13
 
     @staticmethod
     def get_appearances(num_bots: int) -> List[str]:
@@ -40,14 +40,14 @@ class Flyby(Choreography):
     def generate_sequence(self):
         self.sequence = [
             SetGrav(),
-            Wait(1.0),
+            Wait(10.0),
             FlyBySetup(),
             TheFlyBy(),
         ]
 
 
 class SetGrav(StateSettingStep):
-    grav = -300
+    grav = -1
     def perform(self, *args) -> StepResult:
         interface = next((arg for arg in args if isinstance(arg, GameInterface)), None)
         if interface:
@@ -55,30 +55,37 @@ class SetGrav(StateSettingStep):
         return super().perform(*args)
 
 
-START = vec3(-20000, -40000, 10000)
+START = vec3(-25000, -41000, 5000)
 
 
 class FlyBySetup(StateSettingStep):
-    radius = 500
+    radius = 700
     def set_drone_states(self, drones: List[Drone]):
         drones[0].position = START
-        drones[0].velocity = vec3(1000, 0, 0)
-        drones[0].orientation = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1)
+        drones[0].velocity = vec3(0, 2300, 0)
+        drones[0].orientation = look_at(vec3(0, 1, 0), vec3(0, 0, 1))
         for i, drone in enumerate(drones[1:]):
-            angle = i * 2 * pi / 6
-            pos = vec3(0, cos(angle) * self.radius, sin(angle) * self.radius)
+            angle = i * 2 * pi / 12
+            pos = vec3(cos(angle) * self.radius, 0, sin(angle) * self.radius)
             drone.position = START + pos
-            drone.velocity = vec3(1000, 0, 0)
-            drone.orientation = mat3(1, 0, 0, 0, 1, 0, 0, 0, 1)
+            drone.velocity = vec3(0, 2300, 0)
+            drone.orientation = look_at(normalize(vec3(0, 1000, 0) - pos), normalize(pos))
 
 
 class TheFlyBy(PerDroneStep):
+    radius = 700
     duration = 10.0
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        target_direction = normalize(vec3(4, 0, 1))
-        o = look_at(target_direction, vec3(0, 0, 1))
-        drone.aerial_turn.target = dot(axis_to_rotation(vec3(1, 0, 0) * self.time_since_start / 5), o)
+        if index == 0:
+            pos = vec3(0, 0, 0)
+        else:
+            angle = (index + 1) * 2 * pi / 12
+            pos = vec3(cos(angle) * self.radius, 0, sin(angle) * self.radius)
+
+        o = look_at(normalize(vec3(0, 2000, 0) - pos), normalize(pos))
+
+        drone.aerial_turn.target = dot(axis_to_rotation(vec3(0, 3, 0) * self.time_since_start), o)
         drone.aerial_turn.step(self.dt)
         drone.controls = drone.aerial_turn.controls
         drone.controls.boost = True
