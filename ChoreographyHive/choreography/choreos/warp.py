@@ -118,15 +118,6 @@ class Explosion(Choreography):
             Wait(1),
         ]
 
-class Test(StateSettingStep):
-    def perform(self, *args):
-        interface = next((arg for arg in args if isinstance(arg, GameInterface)), None)
-        if interface:
-            field_info = FieldInfoPacket()
-            interface.update_field_info_packet(field_info)
-            print([g.location for g in field_info.goals[:field_info.num_goals]])
-        return super().perform(*args)
-
 
 class ExplosionPrep(TwoTickStateSetStep):
     duration = 1.0
@@ -168,3 +159,55 @@ class Boom(PerDroneStep):
         # drone.controls.roll = -1.0
         drone.controls.boost = True
         
+
+class GoalExp(Choreography):
+    map_name = "UtopiaRetro"
+    # map_name = "AquaDome"
+
+    @staticmethod
+    def get_num_bots():
+        return 2
+
+    @staticmethod
+    def get_appearances(num_bots: int) -> List[str]:
+        return ["flag.cfg"] * num_bots
+
+    @staticmethod
+    def get_teams(num_bots: int) -> List[int]:
+        return [0, 1]
+
+    @staticmethod
+    def get_names(num_bots: int) -> List[str]:
+        return [str(i) for i in range(num_bots)]
+
+    def generate_sequence(self):
+        sequence = [ Wait(19.3) ]
+        pos = vec3(vec3(-19200, 3300, 8100))
+        sequence += [
+            SetLastTouch(),
+            Wait(0.1),
+            SetBall(pos),
+            Wait(0.1),
+            SetBall(vec3(3000, 800, 300)),
+            Wait(3.0),
+        ]        
+
+        self.sequence = sequence
+
+class SetLastTouch(StateSettingStep):
+    def set_ball_state(self, ball):
+        ball.position = vec3(0, 0, 500)
+        ball.velocity = vec3(0, 0, 0)
+    def set_drone_states(self, drones: List[Drone]):
+        for drone in drones:
+            drone.position = vec3(0, 0, 500)
+            drone.velocity = vec3(0, 0, 0)
+
+class SetBall(StateSettingStep):
+    def __init__(self, pos):
+        super().__init__()
+        self.pos = pos
+    def set_ball_state(self, ball):
+        ball.position = vec3(self.pos)
+        ball.velocity = vec3(0, 0, 0)
+        ball.angular_velocity = vec3(0, 0, 0)
