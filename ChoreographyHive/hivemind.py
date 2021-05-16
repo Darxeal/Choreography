@@ -6,7 +6,7 @@ from rlbot.utils.logging_utils import get_logger
 from rlbot.utils.structures.game_data_struct import GameTickPacket, FieldInfoPacket
 from rlbot.utils.structures.game_interface import GameInterface
 
-import time
+import traceback
 
 from choreography.drone import Drone
 from queue_commands import QCommand
@@ -47,16 +47,15 @@ class Hivemind:
         # Loads game interface.
         self.game_interface.load_interface()
 
+        # Create packet object.
+        packet = GameTickPacket()
+        self.game_interface.fresh_live_data_packet(packet, 20, 0)
+
         # This is how you access field info.
         # First create the initialise the object...
         field_info = FieldInfoPacket()
         # Then update it.
         self.game_interface.update_field_info_packet(field_info)
-
-        # Same goes for the packet, but that is
-        # also updated in the main loop every tick.
-        packet = GameTickPacket()
-        self.game_interface.update_live_data_packet(packet)
 
         # Initialise drones list. Will be filled with Drone objects for every drone.
         self.drones = []
@@ -71,40 +70,37 @@ class Hivemind:
 
         # MAIN LOOP:
         while self.loop_check():
+            try:
+                # Updating the packet.
+                self.game_interface.fresh_live_data_packet(packet, 20, 0)
 
-            prev_time = packet.game_info.seconds_elapsed
-            # Updating the game tick packet.
-            self.game_interface.update_live_data_packet(packet)
+                # Create a Drone object for every drone that holds its information.
+                if packet.num_cars > len(self.drones):
+                    # Clears the list if there are more cars than drones.
+                    self.drones.clear()
+                    for index in range(packet.num_cars):
+                        self.drones.append(Drone(index, packet.game_cars[index].team))
+                
+                # Processing drone data.
+                for drone in self.drones:
+                    drone.update(packet.game_cars[drone.id], packet)
 
-            # Checking if packet is new, otherwise sleep.
-            if prev_time == packet.game_info.seconds_elapsed:
-                time.sleep(0.001)
-                continue
+                # Steps through the choreography.
+                self.choreo.step(packet, self.drones)
 
-            # Create a Drone object for every drone that holds its information.
-            if packet.num_cars > len(self.drones):
-                # Clears the list if there are more cars than drones.
-                self.drones.clear()
-                for index in range(packet.num_cars):
-                    self.drones.append(Drone(index, packet.game_cars[index].team))
+                # Resets choreography once it has finished.
+                if self.choreo.finished:
+                    # Re-instantiates the choreography.
+                    self.choreo = self.choreo.__class__(self.game_interface)
+                    self.choreo.generate_sequence()
 
-            # Processing drone data.
-            for drone in self.drones:
-                drone.update(packet.game_cars[drone.id], packet)
+                # Sends the drone inputs to the drones.
+                for drone in self.drones:
+                    self.game_interface.update_player_input(
+                        convert_player_input(drone.controls), drone.id)
 
-            # Steps through the choreography.
-            self.choreo.step(packet, self.drones)
-
-            # Resets choreography once it has finished.
-            if self.choreo.finished:
-                # Re-instantiates the choreography.
-                self.choreo = self.choreo.__class__(self.game_interface)
-                self.choreo.generate_sequence()
-
-            # Sends the drone inputs to the drones.
-            for drone in self.drones:
-                self.game_interface.update_player_input(
-                    convert_player_input(drone.controls), drone.id)
+            except Exception:
+                traceback.print_exc()
 
     def loop_check(self):
         """

@@ -234,7 +234,7 @@ class RLBotChoreography:
         # Dropdown menu.
         self.choreographies = reload_choreographies()
         menuvar = tk.StringVar(root)
-        menuvar.set('ConnectedChoreo')  # Set the default option
+        menuvar.set(next(iter(self.choreographies.keys())))
         dropMenu = tk.OptionMenu(frame, menuvar, *self.choreographies, command=choreo_selected)
         dropMenu.pack()
 
