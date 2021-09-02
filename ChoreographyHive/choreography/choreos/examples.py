@@ -6,7 +6,8 @@ from rlbot.utils.structures.game_interface import GameInterface
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, PerDroneStep, StateSettingStep
+from choreography.steps.base_steps import BlindBehaviorStep, DroneListStep, PerDroneStep, StateSettingStep
+from choreography.steps.utils import Wait
 
 from rlutilities.linear_algebra import vec3, rotation, dot, vec2, look_at, normalize, xy, angle_between, \
     axis_to_rotation
@@ -104,16 +105,6 @@ class DriveForward(BlindBehaviorStep):
 
     def set_controls(self, controls: Input):
         controls.throttle = 1
-
-
-class Wait(BlindBehaviorStep):
-
-    def __init__(self, how_long: float = 1.0):
-        self.duration = how_long
-        super().__init__()
-
-    def set_controls(self, controls: Input):
-        pass
 
 
 class ExampleChoreography(Choreography):

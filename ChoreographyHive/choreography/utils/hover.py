@@ -8,7 +8,7 @@ class Hover:
     """
     PD controller for hovering in the air
     """
-    P = 1.8
+    P = 7.0
     D = 2.5
 
     def __init__(self, car: Car):
@@ -26,6 +26,7 @@ class Hover:
             1000
         ))
 
+        self.turn = AerialTurn(self.car)
         self.turn.target = look_at(target_direction, self.up)
 
         self.turn.step(dt)

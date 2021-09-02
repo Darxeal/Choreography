@@ -114,10 +114,7 @@ class RLBotChoreography:
             reload(hivemind)
             my_hivemind = hivemind.Hivemind(queue, self.choreo_obj)
 
-            try:
-                my_hivemind.start()  # Loop only quits on STOP command.
-            except Exception as e:
-                print(f'[ERROR]: {e}')
+            my_hivemind.start()  # Loop only quits on STOP command.
 
             # Checks what to do after Hivemind died.
             command = queue.get()

@@ -1,4 +1,4 @@
-from typing import List, Iterable
+from typing import List, Iterable, Optional, Collection, Dict
 from math import inf
 
 from rlbot.utils.rendering.rendering_manager import RenderingManager
@@ -13,16 +13,20 @@ from rlutilities.linear_algebra import vec3, mat3, rotation_to_euler
 
 
 class StepResult:
-    def __init__(self, finished: bool = False):
+    def __init__(self, finished: bool = False,
+                 car_states: Optional[Dict[int, CarState]] = None,
+                 ball_state: Optional[BallState] = None):
         self.finished = finished
+        self.car_states = car_states
+        self.ball_state = ball_state
 
 
 class GroupStep:
     duration: float = inf
-    target_indexes: Iterable[int] = range(64)
+    target_indexes: Collection[int] = range(64)
 
     def __init__(self):
-        self.start_time: float = None
+        self.start_time: Optional[float] = None
         self.finished = False
         self.time = 0.0
         self.dt = 0.0
@@ -39,47 +43,6 @@ class GroupStep:
 
     def render(self, renderer: RenderingManager):
         pass
-
-
-class ParallelStep(GroupStep):
-    """
-    Multiple steps run in parallel
-    """
-
-    def __init__(self, steps: List[GroupStep]):
-        super().__init__()
-        self.steps = steps
-
-    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
-        finished = False
-        for step in self.steps:
-            if step.perform(packet, drones, interface).finished:
-                finished = True
-        return StepResult(finished)
-
-    def render(self, renderer: RenderingManager):
-        for step in self.steps:
-            step.render(renderer)
-
-
-class CompositeStep(GroupStep):
-    """
-    Multiple steps run in a sequence
-    """
-
-    def __init__(self, steps: List[GroupStep]):
-        super().__init__()
-        self.steps = steps
-        self.current_step_index = 0
-
-    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
-        step = self.steps[self.current_step_index]
-        if step.perform(packet, drones, interface).finished:
-            self.current_step_index += 1
-        return StepResult(self.current_step_index == len(self.steps))
-
-    def render(self, renderer: RenderingManager):
-        self.steps[self.current_step_index].render(renderer)
 
 
 class DroneListStep(GroupStep):
@@ -104,6 +67,7 @@ class PerDroneStep(GroupStep):
     """
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        super().perform(packet, drones, interface)
         for index, drone in enumerate(drones):
             if drone.id in self.target_indexes:
                 self.step(packet, drone, index)
@@ -139,6 +103,8 @@ class StateSettingStep(GroupStep):
     duration = 0.1  # wait a bit for state setting to take effect
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        result = super().perform(packet, drones, interface)
+
         ball = Ball()
         ball.position = vector3_to_vec3(packet.game_ball.physics.location)
         ball.velocity = vector3_to_vec3(packet.game_ball.physics.velocity)
@@ -148,26 +114,29 @@ class StateSettingStep(GroupStep):
         self.set_ball_state(ball)
         self.set_drone_states(target_drones)
 
-        state = GameState(cars={})
-        state.ball = BallState(
+        ball_state = BallState(
             physics=Physics(
                 location=vec3_to_vector3(ball.position),
                 velocity=vec3_to_vector3(ball.velocity),
                 angular_velocity=vec3_to_vector3(ball.angular_velocity)
             )
         )
+
+        car_states = {}
         for drone in target_drones:
-            state.cars[drone.id] = CarState(
+            car_states[drone.id] = CarState(
                 Physics(
                     location=vec3_to_vector3(drone.position),
                     velocity=vec3_to_vector3(drone.velocity),
-                    angular_velocity=vec3_to_vector3(drone.angular_velocity),
+                    # angular_velocity=vec3_to_vector3(drone.angular_velocity),
                     rotation=mat3_to_rotator(drone.orientation)
                 ),
                 drone.boost
             )
-        interface.set_game_state(state)
-        return super().perform(packet, drones, interface)
+
+        result.car_states = car_states
+        result.ball_state = ball_state
+        return result
 
     def set_ball_state(self, ball: Ball):
         pass

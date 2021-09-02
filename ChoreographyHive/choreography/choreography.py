@@ -1,10 +1,11 @@
 from typing import List
 
+from rlbot.utils.game_state_util import GameState
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
 
 from choreography.drone import Drone
-from choreography.group_step import GroupStep
+from choreography.steps.base_steps import GroupStep
 
 
 class Choreography:
@@ -26,6 +27,10 @@ class Choreography:
             self.last_frame_time = time
 
             result = step.perform(packet, drones, self.game_interface)
+
+            if result.ball_state or result.car_states:
+                game_state = GameState(ball=result.ball_state, cars=result.car_states)
+                self.game_interface.set_game_state(game_state)
 
             self.game_interface.renderer.begin_rendering()
             step.render(self.game_interface.renderer)

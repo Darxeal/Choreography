@@ -12,10 +12,11 @@ from rlutilities.simulation import Input
 
 from choreography.choreography import Choreography
 from choreography.drone import Drone
-from choreography.group_step import BlindBehaviorStep, DroneListStep, PerDroneStep, \
+from choreography.steps.base_steps import BlindBehaviorStep, DroneListStep, PerDroneStep, \
     StateSettingStep, TwoTickStateSetStep
 from choreography.utils.img_to_shape import convert_img_to_shape
-from .examples import YeetTheBallOutOfTheUniverse, FormACircle, Wait, FlyUp
+from .examples import YeetTheBallOutOfTheUniverse, FormACircle, FlyUp
+from ..steps.utils import Wait
 
 
 # HEX FLIP COOL CLIP

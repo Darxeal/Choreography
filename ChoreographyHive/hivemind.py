@@ -78,7 +78,7 @@ class Hivemind:
 
             # Checking if packet is new, otherwise sleep.
             if prev_time == packet.game_info.seconds_elapsed:
-                time.sleep(0.001)
+                time.sleep(0.0001)
                 continue
 
             # Create a Drone object for every drone that holds its information.
