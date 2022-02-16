@@ -3,7 +3,7 @@ from rlbot.utils.structures.game_data_struct import Rotator, Vector3, PlayerInfo
 from rlutilities.simulation import Car, Input
 from rlutilities.linear_algebra import vec3, mat3, euler_to_rotation
 
-from rlutilities.mechanics import Aerial, AerialTurn
+from rlutilities.mechanics import Aerial, Reorient, Drive
 
 from choreography.utils.hover import Hover
 
@@ -14,9 +14,10 @@ class Drone(Car):
         super().__init__()
         self.team = team
         self.id = index
-        self.aerial_turn = AerialTurn(self)
+        self.reorient = Reorient(self)
         self.aerial = Aerial(self)
         self.hover = Hover(self)
+        self.drive = Drive(self)
 
     def update(self, game_car: PlayerInfo, packet: GameTickPacket):
         self.position = vector3_to_vec3(game_car.physics.location)
@@ -26,6 +27,8 @@ class Drone(Car):
         self.boost = game_car.boost
         self.time = packet.game_info.seconds_elapsed
         self.on_ground = game_car.has_wheel_contact
+        self.jumped = game_car.jumped
+        self.double_jumped = game_car.double_jumped
 
         # Reset ctrl every tick.
         self.controls = Input()

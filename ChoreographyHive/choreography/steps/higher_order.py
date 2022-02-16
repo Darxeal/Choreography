@@ -71,6 +71,7 @@ class CompositeStep(GroupStep):
 
             if result.finished:
                 self.current_step_index += 1
+                result.finished = False
         else:
             result = StepResult(finished=True)
         return result
@@ -83,6 +84,7 @@ class DelayedStep(GroupStep):
     """
     A step wrapper which delays the step by a specified amount of time (seconds)
     """
+
     def __init__(self, step: GroupStep, delay: float):
         super().__init__()
         self.step = step

@@ -47,9 +47,9 @@ class FlyUpAerialTurn(PerDroneStep):
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         up = normalize(drone.position)
-        drone.aerial_turn.target = look_at(vec3(0, 0, 1), up)
-        drone.aerial_turn.step(self.dt)
-        drone.controls = drone.aerial_turn.controls
+        drone.reorient.target = look_at(vec3(0, 0, 1), up)
+        drone.reorient.step(self.dt)
+        drone.controls = drone.reorient.controls
         drone.controls.boost = angle_between(vec3(0, 0, 1), drone.forward()) < 0.5
         drone.controls.jump = True
 
@@ -91,7 +91,7 @@ class HoverExample(PerDroneStep):
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
         drone.hover.up = normalize(drone.position)
-        clockwise_rotation = axis_to_rotation(vec3(0, 0, 0.5))
+        clockwise_rotation = axis_to_rotation(vec3(0, 0, 0.1))
         position_on_circle = normalize(xy(drone.position)) * 2000
         drone.hover.target = dot(clockwise_rotation, position_on_circle)
         drone.hover.target[2] = 1000
