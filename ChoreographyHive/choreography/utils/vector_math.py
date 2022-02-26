@@ -1,3 +1,4 @@
+import math
 from typing import List
 
 from rlutilities.linear_algebra import vec3, norm, normalize, clip
@@ -24,6 +25,10 @@ def smoothstep(a, b, t):
 
 def smoothlerp(a, b, t):
     return lerp(a, b, smoothstep(0, 1, t))
+
+
+def sigmoid(x):
+    return 1 / (1 + math.exp(-x))
 
 
 def to_list(v: vec3) -> List[float]:

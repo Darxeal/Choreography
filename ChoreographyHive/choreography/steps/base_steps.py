@@ -23,7 +23,7 @@ class StepResult:
 
 class GroupStep:
     duration: float = inf
-    target_indexes: Collection[int] = range(64)
+    target_indexes: Collection[int] = range(128)
 
     def __init__(self):
         self.start_time: Optional[float] = None
