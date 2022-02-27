@@ -31,6 +31,7 @@ class Drone(Car):
         self.double_jumped = game_car.double_jumped
 
         # Reset ctrl every tick.
+        self.reorient = Reorient(self)
         self.controls = Input()
 
 

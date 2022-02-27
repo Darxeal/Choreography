@@ -1,3 +1,4 @@
+import math
 import random
 from typing import List
 
@@ -9,11 +10,12 @@ from scipy.spatial.transform import Slerp, Rotation
 from choreography.choreography import Choreography
 from choreography.choreos.dacia import HideDrones, HideBall
 from choreography.drone import Drone
-from choreography.steps.base_steps import StateSettingStep, GroupStep, StepResult, vec3_to_vector3
+from choreography.steps.base_steps import StateSettingStep, GroupStep, StepResult, vec3_to_vector3, PerDroneStep
+from choreography.steps.higher_order import ParallelStep, CompositeStep
 from choreography.steps.utils import Wait
 from choreography.utils.img_to_shape import convert_img_to_shape
-from choreography.utils.vector_math import smootherlerp, distance
-from rlutilities.linear_algebra import vec3, look_at, clip, euler_to_rotation
+from choreography.utils.vector_math import smootherlerp, distance, smootherstep
+from rlutilities.linear_algebra import vec3, look_at, clip, euler_to_rotation, dot, axis_to_rotation
 
 emblem_shape = convert_img_to_shape("ChoreographyHive/assets/dacia-emblem.png")
 logo_shape = convert_img_to_shape("ChoreographyHive/assets/dacia-logo.png")
@@ -21,7 +23,7 @@ emblem_positions = [vec3(0, (pos.x - 8) * 150, pos.y * 80 + 1000) for pos in emb
 logo_positions = [vec3(pos.y * 70, -(pos.x - 25) * 100, 17) for pos in logo_shape]
 
 
-class Emblem(GroupStep):
+class StartToEmblem(GroupStep):
     duration = 10.0
     target_indexes = range(len(emblem_shape))
 
@@ -41,11 +43,11 @@ class Emblem(GroupStep):
             drone_pos = smootherlerp(start_pos, emblem_pos, t)
             result.car_states[drone.id] = CarState(Physics(
                 location=vec3_to_vector3(drone_pos),
-                velocity=vec3_to_vector3(vec3(z=100))
+                velocity=vec3_to_vector3(vec3())
             ))
 
             if t > 0.7:
-                drone.reorient.target_orientation = look_at(vec3(0, 0, -1), vec3(1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0, 0, -1), vec3(-1, 0, 0))
                 drone.reorient.step(self.dt)
                 drone.controls = drone.reorient.controls
             else:
@@ -53,6 +55,141 @@ class Emblem(GroupStep):
                 drone.controls.roll = -1
 
         return result
+
+
+class RotateEntireEmblem(GroupStep):
+    duration = 10.0
+    target_indexes = range(len(emblem_shape))
+
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        result = super().perform(packet, drones, interface)
+        result.car_states = {}
+
+        for drone, emblem_pos in zip(drones, emblem_positions):
+            t = self.time_since_start / self.duration
+            angle = smootherstep(0, 1, t) * math.pi * 2
+            rot = axis_to_rotation(vec3(z=angle))
+            drone_pos = dot(rot, emblem_pos)
+            drone_pos.z -= (1 - self.time_since_start / self.duration) * 500
+
+            result.car_states[drone.id] = CarState(Physics(
+                location=vec3_to_vector3(drone_pos),
+                velocity=vec3_to_vector3(vec3())
+            ))
+
+            up = dot(axis_to_rotation(vec3(z=angle)), vec3(-1, 0, 0))
+            drone.reorient.target_orientation = look_at(vec3(0, 0, -1), up)
+            drone.reorient.step(self.dt)
+            drone.controls = drone.reorient.controls
+
+        return result
+
+
+class GoUp(GroupStep):
+    duration = 5.0
+    target_indexes = range(len(emblem_shape))
+
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        result = super().perform(packet, drones, interface)
+        result.car_states = {}
+
+        for drone, emblem_pos in zip(drones, emblem_positions):
+            drone_pos = vec3(emblem_pos)
+            drone_pos.z -= (1 - self.time_since_start / self.duration) * 500
+
+            result.car_states[drone.id] = CarState(Physics(
+                location=vec3_to_vector3(drone_pos),
+                velocity=vec3_to_vector3(vec3())
+            ), boost_amount=100)
+
+        return result
+
+
+class GoDown(GroupStep):
+    duration = 5.0
+    target_indexes = range(len(emblem_shape))
+
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        result = super().perform(packet, drones, interface)
+        result.car_states = {}
+
+        for drone, emblem_pos in zip(drones, emblem_positions):
+            drone_pos = vec3(emblem_pos)
+            drone_pos.z -= (self.time_since_start / self.duration) * 500
+
+            result.car_states[drone.id] = CarState(Physics(
+                location=vec3_to_vector3(drone_pos),
+                velocity=vec3_to_vector3(vec3())
+            ), boost_amount=100)
+
+        return result
+
+
+class RotateCars(GroupStep):
+    duration = 20.0
+    target_indexes = range(len(emblem_shape))
+
+    def t(self, emblem_pos: vec3) -> float:
+        raise NotImplementedError
+
+    def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
+        result = super().perform(packet, drones, interface)
+        result.car_states = {}
+
+        for drone, emblem_pos in zip(drones, emblem_positions):
+            t = self.t(emblem_pos)
+
+            boost = False
+            if t < 1.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(-1, 0, 0))
+            elif t < 3.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(1, 0, 0))
+            elif t < 5.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(-1, 0, 0))
+            elif t < 7.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0))
+            elif t < 9.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0))
+                boost = True
+            elif t < 10.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0))
+            elif t < 13.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(-1, 0, 0))
+            elif t < 16.0:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(1, 0, 0))
+            else:
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(-1, 0, 0))
+
+            drone.reorient.step(self.dt)
+            drone.controls = drone.reorient.controls
+            drone.controls.boost = boost
+
+        return result
+
+
+class RotateCarsHorizontal(RotateCars):
+    def t(self, emblem_pos: vec3) -> float:
+        return self.time_since_start - abs(emblem_pos.y) / 1000
+
+
+class RotateCarsVertical(RotateCars):
+    def t(self, emblem_pos: vec3) -> float:
+        return self.time_since_start - abs(emblem_pos.z) / 1000
+
+
+class Madness(PerDroneStep):
+    duration = 15.0
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        drone.controls.boost = True
+        drone.reorient.target_orientation = axis_to_rotation(vec3(
+            math.sin(self.time_since_start),
+            math.cos(self.time_since_start),
+            math.cos(self.time_since_start + 1)
+        ))
+        drone.reorient.step(self.dt)
+        drone.controls = drone.reorient.controls
+        drone.controls.boost = True
 
 
 free_logo = set(logo_positions)
@@ -66,7 +203,7 @@ for index in indices:
 
 
 class EmblemToLogo(GroupStep):
-    duration = 12.0
+    duration = 15.0
     target_indexes = range(len(emblem_shape))
 
     def perform(self, packet: GameTickPacket, drones: List[Drone], interface: GameInterface) -> StepResult:
@@ -113,10 +250,31 @@ class DaciaEmblemAirshow(Choreography):
         self.sequence = [
             HideBall(),
             HideDrones(),
-            Emblem(),
+            StartToEmblem(),
+            ParallelStep([
+                CompositeStep([
+                    GoDown(),
+                    GoUp(),
+                    GoDown(),
+                    GoUp(),
+                    GoDown(),
+                    GoUp(),
+                    GoDown(),
+                    GoUp(),
+                    GoDown(),
+                    GoUp(),
+                    GoDown(),
+                ]),
+                CompositeStep([
+                    RotateCarsHorizontal(),
+                    Madness(),
+                    RotateCarsVertical(),
+                ]),
+            ]),
+            RotateEntireEmblem(),
             EmblemToLogo(),
             Logo(),
-            Wait(5.0),
+            Wait(10.0),
         ]
 
     @staticmethod
