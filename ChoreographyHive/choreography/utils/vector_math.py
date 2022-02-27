@@ -16,15 +16,30 @@ def lerp(a, b, t):
     return a + t * (b - a)
 
 
+def invlerp(a, b, v):
+    return (v - a) / (b - a)
+
+
 def smoothstep(a, b, t):
+    # Scale, bias and saturate x to 0..1 range
+    x = clip((t - a) / (b - a), 0.0, 1.0)
+    # Evaluate polynomial
+    return x * x * (3 - 2 * x)
+
+
+def smoothlerp(a, b, t):
+    return lerp(a, b, smootherstep(0, 1, t))
+
+
+def smootherstep(a, b, t):
     # Scale, bias and saturate x to 0..1 range
     x = clip((t - a) / (b - a), 0.0, 1.0)
     # Evaluate polynomial
     return x * x * x * (x * (x * 6 - 15) + 10)
 
 
-def smoothlerp(a, b, t):
-    return lerp(a, b, smoothstep(0, 1, t))
+def smootherlerp(a, b, t):
+    return lerp(a, b, smootherstep(0, 1, t))
 
 
 def sigmoid(x):

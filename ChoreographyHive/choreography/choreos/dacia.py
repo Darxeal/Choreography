@@ -1,4 +1,5 @@
 import math
+from bisect import bisect_left
 from typing import List
 
 from perlin_noise import PerlinNoise
@@ -13,7 +14,7 @@ from choreography.steps.base_steps import StateSettingStep, PerDroneStep, DroneL
     mat3_to_rotator, GroupStep
 from choreography.steps.higher_order import ParallelStep, CompositeStep
 from choreography.steps.utils import WaitKickoffCountdown, Wait
-from choreography.utils.vector_math import distance, lerp, smoothlerp, sigmoid
+from choreography.utils.vector_math import distance, lerp, smootherlerp, sigmoid, invlerp, smoothlerp
 from rlutilities.linear_algebra import vec3, vec2, look_at, normalize, dot, axis_to_rotation, norm, xy, clip, \
     angle_between, cross
 from rlutilities.simulation import Ball, Game, Field, ray
@@ -155,11 +156,11 @@ class Tornado(GroupStep):
                 t = self.time_since_start * elliptic_speed_multiplier + additional_t - 0.15
 
                 target_height = 300 + wave(time_since_jump * 0.05) * 1500
-                target_radius = smoothlerp(ellipse_radius.x, 500 + target_height * 0.7, min(time_since_jump * 0.2, 1))
+                target_radius = smootherlerp(ellipse_radius.x, 500 + target_height * 0.7, min(time_since_jump * 0.2, 1))
 
                 def tornado_pos(add):
                     c = circular(drone.id, t + add)
-                    return smoothlerp(c, normalize(c), min((time_since_jump + add) * 0.2, 0.6)) * target_radius
+                    return smootherlerp(c, normalize(c), min((time_since_jump + add) * 0.2, 0.6)) * target_radius
 
                 pos = tornado_pos(0)
                 pos_ahead = tornado_pos(1.5)
@@ -207,19 +208,21 @@ class InfiniteBoost(GroupStep):
 
 
 class Flow(StateSettingStep):
-    duration = 30.0
+    duration = 60.0
     noise = PerlinNoise(seed=42, octaves=2)
 
     target_indexes = range(0, 50)
 
     @classmethod
     def pos_at_time(cls, i: float, t: float) -> ray:
-        angle = i * math.pi * 2 + t * 0.25
+        r = lerp(7_000, 2000, t / cls.duration)
+        r = max(r, 2500)
+        angle = i * math.pi * 2 + t * 0.2 + t ** 2 * 0.003
         dir = vec3(math.cos(angle), math.sin(angle), 0)
         height = sigmoid(cls.noise([dir.x, dir.y, t * 0.1]) * 5) * 2000 + 10
-        corrected_height = smoothlerp(height, 1000, 1 - clip(abs(dir.x * 2), 0, 1))
+        corrected_height = smootherlerp(height, 1000, 1 - clip(abs(dir.x * 2), 0, 1))
         start = vec3(0, 0, corrected_height)
-        dir *= 10_000
+        dir *= r
         return Field.raycast_nearest(ray(start, dir))
 
     def set_drone_states(self, drones: List[Drone]):
@@ -229,14 +232,19 @@ class Flow(StateSettingStep):
             coll_ahead = self.pos_at_time(drone.id / len(drones), self.time_since_start + t_ahead)
 
             on_wall = norm(coll.direction) > 0
+            pos = coll.start + coll.direction * (17)
 
-            drone.position = coll.start + coll.direction * (17)
+            landing_t = clip((self.time_since_start - 45) * 0.3, 0, 1)
+            drone.position = lerp(pos, xy(pos) + vec3(z=17), landing_t)
             forward = coll_ahead.start - coll.start
+            forward = lerp(forward, xy(forward), landing_t)
             if on_wall:
                 forward -= coll.direction * 15
+            up = coll.direction if on_wall else vec3(z=1) - normalize(drone.position)
+            up = lerp(up, vec3(z=1), landing_t)
 
-            drone.orientation = look_at(forward, coll.direction)
-            drone.velocity = forward / t_ahead
+            drone.orientation = look_at(forward, up)
+            drone.velocity = vec3()  # forward / t_ahead
             drone.boost = 100
             drone.controls.boost = True
             drone.controls.throttle = True
@@ -254,79 +262,69 @@ class HideDrones(StateSettingStep):
             drone.position.y = 5000 + (drone.id % 5) * 200
 
 
-bolt_points = [
-    vec2(-0.3, 1.0),
-    vec2(-0.1, 0.25),
-    vec2(-0.7, 0.25),
-    vec2(0.3, -1.0),
-    vec2(0.1, -0.25),
-    vec2(0.7, -0.25),
-]
-bolt_points = [vec3(p) * 3000 for p in bolt_points]
-bolt_setup = [
-    (lerp(bolt_points[0], bolt_points[1], 0), 0),
-    (lerp(bolt_points[0], bolt_points[1], .9), 0),
-    (lerp(bolt_points[1], bolt_points[2], 0), 1),
-    (lerp(bolt_points[1], bolt_points[2], .9), 1),
-    (lerp(bolt_points[2], bolt_points[3], 0), 2),
-    (lerp(bolt_points[2], bolt_points[3], .3), 2),
-    (lerp(bolt_points[2], bolt_points[3], .6), 2),
-    (lerp(bolt_points[2], bolt_points[3], .96), 2),
-    (lerp(bolt_points[3], bolt_points[4], 0), 3),
-    (lerp(bolt_points[3], bolt_points[4], .9), 3),
-    (lerp(bolt_points[4], bolt_points[5], 0), 4),
-    (lerp(bolt_points[4], bolt_points[5], .9), 4),
-    (lerp(bolt_points[5], bolt_points[0], 0), 5),
-    (lerp(bolt_points[5], bolt_points[0], .3), 5),
-    (lerp(bolt_points[5], bolt_points[0], .6), 5),
-    (lerp(bolt_points[5], bolt_points[0], .96), 5),
-]
-
-
-class SetupBolt(StateSettingStep):
-    target_indexes = range(len(bolt_setup))
+class HideDronesContinuous(StateSettingStep):
+    duration = math.inf
 
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
-            drone.position, last_point_index = bolt_setup[drone.id]
-            next_point = bolt_points[(last_point_index + 1) % 6]
-            drone.orientation = look_at(next_point - drone.position)
-            drone.position.z = 17
+            drone.position.z = 5000
+            drone.position.x = 100000
+            drone.position.y = 0
+
+
+bolt_points = [
+    vec2(-0.3, 1.0),
+    vec2(-0.1, 0.2),
+    vec2(-0.7, 0.2),
+    vec2(0.3, -1.0),
+    vec2(0.1, -0.2),
+    vec2(0.7, -0.2),
+]
+bolt_points = [p * 3500 for p in bolt_points]
+
+bolt_dists = [0]
+for i in range(len(bolt_points)):
+    bolt_dists.append(bolt_dists[-1] + distance(bolt_points[i - 1], bolt_points[i]))
+
+bolt_points_closed = [bolt_points[-1]] + bolt_points
+
+
+class LightningBolt(StateSettingStep):
+    speed = 2000
+    intervals = 1250
+    target_indexes = range(17)
+    duration = 30.0
+
+    def set_drone_states(self, drones: List[Drone]):
+        for drone in drones:
+            dist = (self.time_since_start * self.speed + drone.id * self.intervals) % bolt_dists[-1]
+            bolt_index = bisect_left(bolt_dists, dist) - 1
+            t = invlerp(bolt_dists[bolt_index], bolt_dists[bolt_index + 1], dist)
+            a = bolt_points_closed[bolt_index]
+            b = bolt_points_closed[bolt_index + 1]
+            c = bolt_points[(bolt_index + 1) % len(bolt_points)]
+
+            pos_on_bolt = smootherlerp(a, b, t)
+
+            angle = dist / bolt_dists[-1] * math.pi * 2
+            pos_on_circle = vec2(math.cos(angle), math.sin(angle)) * 2500
+
+            pos = vec3(lerp(pos_on_circle, pos_on_bolt, clip(self.time_since_start * 0.1 - 0.3, 0, 1)))
+            pos.z = 19
+            drone.position = pos
+
+            forward = vec3(normalize(b - a))
+            forward_next = vec3(normalize(c - b))
+            ori_t = interpolate.interp1d([0, 0.3, 1], [0, 0, 1])(t)
+            drone.orientation = look_at(lerp(forward, forward_next, ori_t))
+
+            # drone.velocity = forward * self.speed
             drone.velocity = vec3()
             drone.angular_velocity = vec3()
+
             drone.boost = 100
-
-
-class Bolt(PerDroneStep):
-    duration = 20.0
-    target_indexes = range(len(bolt_setup))
-
-    def __init__(self):
-        super().__init__()
-        self.current_target_indices = {i: (bolt_setup[i][1] + 1) % 6 for i in self.target_indexes}
-
-    def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        target_point = bolt_points[self.current_target_indices[index]]
-        if distance(drone.position, target_point) < max(norm(drone.velocity) * 0.5, 500):
-            if drone.on_ground:
-                if norm(drone.velocity) > 500:
-                    drone.controls.throttle = -1
-                    drone.controls.boost = False
-                    drone.controls.steer = 0
-                else:
-                    drone.controls.jump = True
-            else:
-                self.current_target_indices[index] = (self.current_target_indices[index] + 1) % 6
-        elif not drone.on_ground:
-            drone.reorient.target_orientation = look_at(target_point - drone.position)
-            drone.reorient.step(self.dt)
-            drone.controls = drone.reorient.controls
-            drone.controls.jump = False
-        else:
-            drone.drive.target = target_point
-            drone.drive.step(self.dt)
-            drone.controls = drone.drive.controls
-            drone.controls.boost = True
+            drone.controls.boost = t < 0.8
+            drone.controls.handbrake = True
 
 
 class Atom(StateSettingStep):
@@ -424,11 +422,7 @@ class DaciaAirshow(Choreography):
 
             HideBall(),
             HideDrones(),
-            SetupBolt(),
-            ParallelStep([
-                Bolt(),
-                InfiniteBoost(),
-            ]),
+            LightningBolt(),
 
             HideDrones(),
             LightBall(),
@@ -439,6 +433,14 @@ class DaciaAirshow(Choreography):
             Atom(),
             ExplodeBall(),
             Wait(10.0),
+        ]
+
+        self.sequence = [
+            HideBall(),
+            HideDrones(),
+            Flow(),
+            HideDrones(),
+            LightningBolt(),
         ]
 
     @staticmethod

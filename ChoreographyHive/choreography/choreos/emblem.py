@@ -12,7 +12,7 @@ from choreography.drone import Drone
 from choreography.steps.base_steps import StateSettingStep, GroupStep, StepResult, vec3_to_vector3
 from choreography.steps.utils import Wait
 from choreography.utils.img_to_shape import convert_img_to_shape
-from choreography.utils.vector_math import smoothlerp, distance
+from choreography.utils.vector_math import smootherlerp, distance
 from rlutilities.linear_algebra import vec3, look_at, clip, euler_to_rotation
 
 emblem_shape = convert_img_to_shape("ChoreographyHive/assets/dacia-emblem.png")
@@ -38,7 +38,7 @@ class Emblem(GroupStep):
             emblem_pos = vec3(emblem_pos)
             emblem_pos.z += (self.time_since_start - self.duration) * 60
 
-            drone_pos = smoothlerp(start_pos, emblem_pos, t)
+            drone_pos = smootherlerp(start_pos, emblem_pos, t)
             result.car_states[drone.id] = CarState(Physics(
                 location=vec3_to_vector3(drone_pos),
                 velocity=vec3_to_vector3(vec3(z=100))
@@ -76,7 +76,7 @@ class EmblemToLogo(GroupStep):
         for drone, emblem_pos in zip(drones, emblem_positions):
             start_t = emblem_shape[drone.id].y * 0.3
             t = clip((self.time_since_start - start_t) * 0.1, 0, 1)
-            drone_pos = smoothlerp(emblem_pos, target_logo[drone.id], t)
+            drone_pos = smootherlerp(emblem_pos, target_logo[drone.id], t)
 
             if t < 0.9:
                 result.car_states[drone.id] = CarState(Physics(
