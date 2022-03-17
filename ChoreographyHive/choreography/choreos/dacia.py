@@ -15,7 +15,8 @@ from choreography.steps.base_steps import StateSettingStep, PerDroneStep, DroneL
     mat3_to_rotator, GroupStep
 from choreography.steps.higher_order import ParallelStep, CompositeStep
 from choreography.steps.utils import WaitKickoffCountdown, Wait
-from choreography.utils.vector_math import distance, lerp, smootherlerp, sigmoid, invlerp, smoothlerp, smootherstep
+from choreography.utils.vector_math import distance, lerp, smootherlerp, sigmoid, invlerp, smoothlerp, smootherstep, \
+    smoothstep
 from rlutilities.linear_algebra import vec3, vec2, look_at, normalize, dot, axis_to_rotation, norm, xy, clip, \
     angle_between, cross, rotation, euler_to_rotation
 from rlutilities.simulation import Ball, Game, Field, ray, Car, sphere
@@ -40,22 +41,29 @@ class HideBall(StateSettingStep):
         ball.angular_velocity = vec3(0, 0, 0)
 
 
-n_layers = 4
+layer_cars = [7, 6] + [5] * 2 + [4] * 5 + [3] * 7
+assert sum(layer_cars) == 64
+cum_layer_cars = [sum(layer_cars[:i + 1]) for i in range(len(layer_cars))]
+
+circ_group_index = [bisect_left(cum_layer_cars, i + 1) for i in range(64)]
+
+circ_index_in_group = [layer_cars[circ_group_index[i]] - cum_layer_cars[circ_group_index[i]] + i for i in range(64)]
 
 
 def radius(i: int) -> float:
-    return int((hash(i * 3.98321) % 700) / 100 * 2) / 20 + 0.3
-    # return int(i / n_layers) / (64 / n_layers) * 0.7 + 0.3
+    # return int((hash(i * 3.98321) % 700) / 100 * 2) / 20 + 0.3
+    return circ_group_index[i] / len(layer_cars) * 0.7 + 0.3
 
 
 radius_to_speed = lambda r: 1 - r * 0.5
 
 
 def circular(i: int, t: float) -> vec3:
-    a = hash(i * 9.778) % (math.pi * 2)
-    # a = (i % n_layers) / n_layers * math.pi * 2
+    # a = hash(i * 9.778) % (math.pi * 2)
+    a = circ_index_in_group[i] / layer_cars[circ_group_index[i]] * math.pi * 2
     r = radius(i)
     s = radius_to_speed(r)
+    t += 10000
     return vec3(math.cos(a + t * s) * r, math.sin(a + t * s) * r, 0)
 
 
@@ -109,7 +117,9 @@ LARGE_PADS = {
 
 
 class DetourForBigPads(DroneListStep):
-    duration = 25.0
+    duration = 25
+
+    # duration = 0
 
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         if self.time_since_start < 2.0:
@@ -117,7 +127,7 @@ class DetourForBigPads(DroneListStep):
         for pad_index, pad_position in LARGE_PADS.items():
             if packet.game_boosts[pad_index].is_active:
                 nearest_drone = min(drones, key=lambda drone: distance(drone.position + drone.velocity, pad_position))
-                if radius(nearest_drone.id) > 0.8:
+                if radius(nearest_drone.id) > 0.9:
                     if distance(pad_position, nearest_drone.position) > 600:
                         nearest_drone.drive.target = pad_position
                         nearest_drone.drive.step(self.dt)
@@ -152,13 +162,13 @@ def smooth_start(x: float) -> float:
 
 
 random.seed(42)
-random_speeds = [random.random() for _ in range(64)]
+random_values = [random.random() for _ in range(64)]
 
 
 class Tornado(GroupStep):
     duration = 50.0 + DetourForBigPads.duration
 
-    jump_interval = 0.5
+    jump_interval = 2.0
 
     @classmethod
     def jump_time(cls, index: int) -> float:
@@ -168,31 +178,42 @@ class Tornado(GroupStep):
         result = super().perform(packet, drones, interface)
         car_states = {}
         for drone in drones:
-            time_since_jump = self.time_since_start - self.jump_time(drone.id)
+            drone_group_id = circ_group_index[drone.id]
+            time_since_jump = self.time_since_start - self.jump_time(drone_group_id)
             if time_since_jump > 0:
-                height_speed = 0.07
-                additional_t = smooth_start(time_since_jump * (
-                        1.4 - radius(drone.id) * 0.3 + random_speeds[drone.id] * 0.1
-                ) / 30) * 30
-                additional_t += (wave(time_since_jump * height_speed + 0.2) - wave(0.2)) * 5.0
-                t = self.time_since_start * elliptic_speed_multiplier + additional_t - 0.15
+                target_height = 200 + (1 - drone_group_id / 16) * 1600 * smoothstep(0, 1,
+                                                                                    min(time_since_jump * 0.2, 1))
 
-                target_height = 300 + wave(time_since_jump * height_speed) * 1500
+                # tornado_radius = 200 + (target_height / 1800) ** 2 * 1800 * 0.8 + random_values[drone.id] * 300
+                tornado_radius = 400 + (target_height / 1800) ** 2 * 1800 * 0.8
                 target_radius = smootherlerp(
                     a=ellipse_radius.x,
-                    b=400 + target_height * 0.7 - wave_deriv(time_since_jump * height_speed) * 70,
+                    b=tornado_radius,
                     t=min(time_since_jump * 0.2, 1)
                 )
 
+                # height_speed = 0.07
+                # additional_t = smooth_start(time_since_jump * (
+                #         4.0 - target_radius / 500  # - radius(drone.id) * 0.5
+                # ) / 20) * 20
+                additional_t = smooth_start((1 + drone_group_id / 16 * 5) * time_since_jump * 0.5)
+                # additional_t = time_since_jump
+                # additional_t += (wave(time_since_jump * height_speed + 0.2) - wave(0.2)) * 5.0
+                t = self.time_since_start * elliptic_speed_multiplier + additional_t - 0.15
+
+                # target_height = 300 + wave(time_since_jump * height_speed) * 1500
+
                 def tornado_pos(add):
                     c = circular(drone.id, t + add)
-                    return smootherlerp(c, normalize(c), min((time_since_jump + add) * 0.2, 0.9)) * target_radius
+                    return smootherlerp(c, normalize(c), min((time_since_jump + add) * 0.2, 1)) * target_radius
 
                 pos = tornado_pos(0 - 0.04)
-                pos_ahead = tornado_pos(1.5)
+                t_ahead = 1.5
+                pos_ahead = tornado_pos(t_ahead)
 
-                pos.z = pos_ahead.z = lerp(17, target_height,
-                                           (smootherstep(0, 1, time_since_jump * 0.5 + 0.5) - 0.5) * 2)
+                # pos.z = lerp(17, target_height, (smootherstep(0, 1, time_since_jump * 0.5 + 0.5) - 0.5) * 2)
+                pos.z = lerp(17, target_height, min(1, time_since_jump * 0.8) ** 0.5)
+                pos_ahead.z = lerp(17, target_height, min(1, (time_since_jump + t_ahead) * 0.8) ** 0.5)
 
                 target_up = normalize(vec3(z=norm(drone.position)) - drone.position)
                 target_forward = normalize(pos_ahead - drone.position) + vec3(z=0.2)
@@ -202,11 +223,12 @@ class Tornado(GroupStep):
                 )
 
                 car_states[drone.id] = CarState(Physics(
-                    location=vec3_to_vector3(lerp(drone.position, pos, 0.0005)),
+                    location=vec3_to_vector3(pos),
+                    # location=vec3_to_vector3(lerp(drone.position, pos, 0.0005)),
                     # location=vec3_to_vector3(lerp(drone.position, pos, 0.000001)),
                     # location=vec3_to_vector3(lerp(drone.position, pos, 0.1)),
                     rotation=mat3_to_rotator(orientation),
-                    velocity=vec3_to_vector3((pos - drone.position) / self.dt)
+                    velocity=vec3_to_vector3((pos_ahead - pos) / t_ahead)
                 ), boost_amount=100)
 
                 drone.controls.boost = True
@@ -274,7 +296,7 @@ class Flow(StateSettingStep):
 
     @classmethod
     def pos_at_time(cls, i: float, t: float) -> ray:
-        r = lerp(7_000, 2000, t / cls.duration)
+        r = lerp(10_000, 2000, t / cls.duration)
         r = max(r, 2500)
         angle = i * math.pi * 2 + t * 0.2 + t ** 2 * 0.003
         dir = vec3(math.cos(angle), math.sin(angle), 0)
@@ -352,7 +374,7 @@ class LightningBolt(StateSettingStep):
     speed = 2000
     intervals = 1250
     target_indexes = range(17)
-    duration = 30.0
+    duration = 25.0
 
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
@@ -368,7 +390,7 @@ class LightningBolt(StateSettingStep):
             angle = dist / bolt_dists[-1] * math.pi * 2
             pos_on_circle = vec2(math.cos(angle), math.sin(angle)) * 2500
 
-            pos = vec3(lerp(pos_on_circle, pos_on_bolt, clip(self.time_since_start * 0.1 - 0.3, 0, 1)))
+            pos = vec3(lerp(pos_on_circle, pos_on_bolt, clip(self.time_since_start * 0.2 - 0.3, 0, 1)))
             pos.z = 19
             drone.position = pos
 
@@ -435,7 +457,7 @@ class Atom(StateSettingStep):
 
 
 class LightBall(StateSettingStep):
-    duration = 10.0
+    duration = 15.0
 
     ball_radius = 1000
     center = vec3(0, 0, 1000)
@@ -554,4 +576,4 @@ class DaciaAirshow(Choreography):
 
     @staticmethod
     def get_teams(num_bots: int) -> List[int]:
-        return [0] * num_bots
+        return [1] * num_bots
