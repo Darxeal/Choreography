@@ -576,4 +576,4 @@ class DaciaAirshow(Choreography):
 
     @staticmethod
     def get_teams(num_bots: int) -> List[int]:
-        return [1] * num_bots
+        return [0] * num_bots
