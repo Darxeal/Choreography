@@ -181,7 +181,7 @@ class Tornado(GroupStep):
             drone_group_id = circ_group_index[drone.id]
             time_since_jump = self.time_since_start - self.jump_time(drone_group_id)
             if time_since_jump > 0:
-                target_height = 200 + (1 - drone_group_id / 16) * 1600 * smoothstep(0, 1,
+                target_height = 400 + (1 - drone_group_id / 16) * 1400 * smoothstep(0, 1,
                                                                                     min(time_since_jump * 0.2, 1))
 
                 # tornado_radius = 200 + (target_height / 1800) ** 2 * 1800 * 0.8 + random_values[drone.id] * 300
@@ -196,10 +196,11 @@ class Tornado(GroupStep):
                 # additional_t = smooth_start(time_since_jump * (
                 #         4.0 - target_radius / 500  # - radius(drone.id) * 0.5
                 # ) / 20) * 20
-                additional_t = smooth_start((1 + drone_group_id / 16 * 5) * time_since_jump * 0.5)
+                additional_t = smooth_start((1 + drone_group_id / 16 * 5) * max(0, time_since_jump - 1.0) * 0.5)
+                additional_t = smooth_start(additional_t / 10) * 10
                 # additional_t = time_since_jump
                 # additional_t += (wave(time_since_jump * height_speed + 0.2) - wave(0.2)) * 5.0
-                t = self.time_since_start * elliptic_speed_multiplier + additional_t - 0.15
+                t = self.time_since_start * elliptic_speed_multiplier + additional_t - 0.17
 
                 # target_height = 300 + wave(time_since_jump * height_speed) * 1500
 
