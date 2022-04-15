@@ -41,6 +41,13 @@ class HideBall(StateSettingStep):
         ball.angular_velocity = vec3(0, 0, 0)
 
 
+class BillboardBall(StateSettingStep):
+    def set_ball_state(self, ball: Ball):
+        ball.position = vec3(22_620, -10_000, 5_700)
+        ball.velocity = vec3(0, 0, 0)
+        ball.angular_velocity = vec3(0, 0, 0)
+
+
 layer_cars = [7, 6] + [5] * 2 + [4] * 5 + [3] * 7
 assert sum(layer_cars) == 64
 cum_layer_cars = [sum(layer_cars[:i + 1]) for i in range(len(layer_cars))]
@@ -296,22 +303,24 @@ class Flow(StateSettingStep):
     target_indexes = range(0, 50)
 
     @classmethod
-    def pos_at_time(cls, i: float, t: float) -> ray:
+    def pos_at_time(cls, i: int, t: float) -> ray:
         r = lerp(10_000, 2000, t / cls.duration)
         r = max(r, 2500)
-        angle = i * math.pi * 2 + t * 0.2 + t ** 2 * 0.003
+        angle = i / 50 * math.pi * 2 + t * 0.4 + t ** 2 * 0.001
         dir = vec3(math.cos(angle), math.sin(angle), 0)
         height = sigmoid(cls.noise([dir.x, dir.y, t * 0.1]) * 5) * 2000 + 10
-        corrected_height = smootherlerp(height, 1000, 1 - clip(abs(dir.x * 2), 0, 1))
-        start = vec3(0, 0, corrected_height)
+        height = lerp(random_values[i] * 2000 + 10, height, clip(t / 8 - 0.5, 0, 1))
+        if height < 1000:
+            height = smootherlerp(height, 1000, 1 - clip(abs(dir.x * 2), 0, 1))
+        start = vec3(0, 0, height)
         dir *= r
         return Field.raycast_nearest(ray(start, dir))
 
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
-            coll = self.pos_at_time(drone.id / len(drones), self.time_since_start)
+            coll = self.pos_at_time(drone.id, self.time_since_start)
             t_ahead = 0.5
-            coll_ahead = self.pos_at_time(drone.id / len(drones), self.time_since_start + t_ahead)
+            coll_ahead = self.pos_at_time(drone.id, self.time_since_start + t_ahead)
 
             on_wall = norm(coll.direction) > 0
             pos = coll.start + coll.direction * (17)
@@ -391,14 +400,18 @@ class LightningBolt(StateSettingStep):
             angle = dist / bolt_dists[-1] * math.pi * 2
             pos_on_circle = vec2(math.cos(angle), math.sin(angle)) * 2500
 
-            pos = vec3(lerp(pos_on_circle, pos_on_bolt, clip(self.time_since_start * 0.2 - 0.3, 0, 1)))
+            start_t = clip(self.time_since_start * 0.2 - 0.3, 0, 1)
+            end_t = clip((self.duration - self.time_since_start) * 0.3 - 1.0, 0, 1)
+            pos = vec3(lerp(pos_on_circle, pos_on_bolt, min(start_t, end_t)))
             pos.z = 19
             drone.position = pos
 
             forward = vec3(normalize(b - a))
             forward_next = vec3(normalize(c - b))
             ori_t = interpolate.interp1d([0, 0.3, 1], [0, 0, 1])(t)
-            drone.orientation = look_at(lerp(forward, forward_next, ori_t))
+            bolt_forward = normalize(lerp(forward, forward_next, ori_t))
+            circle_forward = normalize(vec3(math.cos(angle + math.pi / 2), math.sin(angle + math.pi / 2), 0))
+            drone.orientation = look_at(lerp(circle_forward, bolt_forward, end_t))
 
             # drone.velocity = forward * self.speed
             drone.velocity = vec3()
@@ -409,41 +422,37 @@ class LightningBolt(StateSettingStep):
             drone.controls.handbrake = True
 
 
-class Atom(StateSettingStep):
-    duration = 30.0
+class BoltToSpirals(StateSettingStep):
+    duration = 10.0
 
-    orbit_normals = [
-        vec3(0, 0.01, 1),
-        vec3(0, 1, 0),
-        vec3(0, 1, 1),
-        vec3(0, -1, 1),
-    ]
-    orbit_delays = [-0.3, 0.3, 0.6, 0.0]
-    bots_per_orbit = 3
-    center = vec3(0, 0, 1000)
+    ball_radius = 1000
+    speed = 0.7
+    sphere_portion = 0.9
 
-    orbits = len(orbit_normals)
-    target_indexes = range(orbits * bots_per_orbit)
-
-    speed = 1.5
-    accel = 0.05
-    radius = 1000
-
-    entire_atom_rotation_speed = 0.1
+    n_layers = 15
+    bots_per_layer = 3
+    target_indexes = range(n_layers * bots_per_layer)
 
     @classmethod
     def pos_at_time(cls, t: float, i: int) -> vec3:
-        orbit_index = i % cls.orbits
-        index_in_orbit = int(i / cls.orbits)
+        group_index = int(i / cls.bots_per_layer)
+        index_in_group = i % cls.bots_per_layer
 
-        orbit_normal = normalize(cls.orbit_normals[orbit_index])
-        orbit_normal = dot(axis_to_rotation(vec3(z=t * cls.entire_atom_rotation_speed)), orbit_normal)
+        layer = (1 - 2 * (group_index + 0.5) / cls.n_layers) * cls.sphere_portion
+        orbit_radius = (1 - layer ** 2) ** 0.5
+        radius_t = clip(t * 0.3 - 1.2, 0, 1)
 
-        t_offset = index_in_orbit * 2 * math.pi / cls.bots_per_orbit + cls.orbit_delays[orbit_index]
-        angle = (cls.speed * t + cls.accel * t ** 2 + t_offset) % (2 * math.pi)
+        start_angle = (index_in_group / cls.bots_per_layer + group_index / cls.n_layers / 3) * math.pi * 2
+        angle = start_angle + t * cls.speed + (max(t * 0.3 - 1.4, 0) * 1.0) ** 2 * 0.5
+        orbit = dot(axis_to_rotation(vec3(z=angle)), vec3(1, 0, 0))
 
-        orbit = normalize(cross(orbit_normal, cross(orbit_normal, vec3(z=1))))
-        return cls.center + dot(axis_to_rotation(orbit_normal * angle), orbit * cls.radius)
+        layer_height = 1000 + layer * cls.ball_radius
+        height_t = clip(t * 0.3 - 1, 0, 1)
+
+        height_offset = vec3(z=smootherlerp(19, layer_height, height_t))
+        orbit_offset = orbit * smootherlerp(2500, orbit_radius * cls.ball_radius, radius_t)
+
+        return height_offset + orbit_offset
 
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
@@ -451,7 +460,8 @@ class Atom(StateSettingStep):
             t_ahead = 0.5
             pos_ahead = self.pos_at_time(self.time_since_start + t_ahead, drone.id)
             drone.position = pos
-            drone.orientation = look_at(pos_ahead - pos, self.center - pos)
+            up = lerp(vec3(z=1), normalize(vec3(0, 0, 0.5) - normalize(xy(pos))), clip(pos.z / 100 - 0.1, 0, 1))
+            drone.orientation = look_at(pos_ahead - pos, up)
             drone.velocity = (pos_ahead - pos) / t_ahead
             drone.boost = 100
             drone.controls.boost = True
@@ -512,8 +522,56 @@ class LightBallSpirals(LightBall):
     target_indexes = range(n_layers * bots_per_layer)
 
     reverse_odd_layers = False
-    layer_start_offset_multiplier = -5.0
+    layer_start_offset_multiplier = -3.0
     layer_offset_speed = 0.3
+
+
+class Atom(StateSettingStep):
+    duration = 30.0
+
+    orbit_normals = [
+        vec3(0, 0.01, 1),
+        vec3(0, 1, 0),
+        vec3(0, 1, 1),
+        vec3(0, -1, 1),
+    ]
+    orbit_delays = [-0.3, 0.3, 0.6, 0.0]
+    bots_per_orbit = 3
+    center = vec3(0, 0, 1000)
+
+    orbits = len(orbit_normals)
+    target_indexes = range(orbits * bots_per_orbit)
+
+    speed = 1.5
+    accel = 0.05
+    radius = 1000
+
+    entire_atom_rotation_speed = 0.1
+
+    @classmethod
+    def pos_at_time(cls, t: float, i: int) -> vec3:
+        orbit_index = i % cls.orbits
+        index_in_orbit = int(i / cls.orbits)
+
+        orbit_normal = normalize(cls.orbit_normals[orbit_index])
+        orbit_normal = dot(axis_to_rotation(vec3(z=t * cls.entire_atom_rotation_speed)), orbit_normal)
+
+        t_offset = index_in_orbit * 2 * math.pi / cls.bots_per_orbit + cls.orbit_delays[orbit_index]
+        angle = (cls.speed * t + cls.accel * t ** 2 + t_offset) % (2 * math.pi)
+
+        orbit = normalize(cross(orbit_normal, cross(orbit_normal, vec3(z=1))))
+        return cls.center + dot(axis_to_rotation(orbit_normal * angle), orbit * cls.radius)
+
+    def set_drone_states(self, drones: List[Drone]):
+        for drone in drones:
+            pos = self.pos_at_time(self.time_since_start, drone.id)
+            t_ahead = 0.5
+            pos_ahead = self.pos_at_time(self.time_since_start + t_ahead, drone.id)
+            drone.position = pos
+            drone.orientation = look_at(pos_ahead - pos, self.center - pos)
+            drone.velocity = (pos_ahead - pos) / t_ahead
+            drone.boost = 100
+            drone.controls.boost = True
 
 
 class DaciaAirshow(Choreography):
@@ -565,6 +623,21 @@ class DaciaAirshow(Choreography):
             Atom(),
             ExplodeBall(),
             Wait(10.0),
+        ]
+
+        self.sequence = [
+            HideBall(),
+            HideDrones(),
+            LightningBolt(),
+
+            HideDrones(),
+            BoltToSpirals(),
+
+            HideDrones(),
+            LightBallSpirals(),
+
+            HideDrones(),
+            LightBall(),
         ]
 
     @staticmethod
