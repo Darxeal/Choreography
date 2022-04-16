@@ -18,11 +18,8 @@ from choreography.utils.vector_math import smootherlerp, distance, smootherstep
 from rlutilities.linear_algebra import vec3, look_at, clip, euler_to_rotation, dot, axis_to_rotation
 
 emblem_shape = convert_img_to_shape("ChoreographyHive/assets/dacia-emblem.png")
-emblem_shape = emblem_shape + emblem_shape
-emblem_positions = [vec3(80 if i < 64 else -80, (pos.x - 8) * 150, pos.y * 80 + 1000) for i, pos in
-                    enumerate(emblem_shape)]
-
 logo_shape = convert_img_to_shape("ChoreographyHive/assets/dacia-logo.png")
+emblem_positions = [vec3(0, (pos.x - 8) * 150, pos.y * 80 + 1000) for pos in emblem_shape]
 logo_positions = [vec3(pos.y * 70, -(pos.x - 25) * 100, 17) for pos in logo_shape]
 
 
@@ -50,7 +47,7 @@ class StartToEmblem(GroupStep):
             ))
 
             if t > 0.7:
-                drone.reorient.target_orientation = look_at(vec3(0, 0, 1), vec3(1 if drone.id < 64 else -1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0, 0, -1), vec3(-1, 0, 0))
                 drone.reorient.step(self.dt)
                 drone.controls = drone.reorient.controls
             else:
@@ -80,8 +77,8 @@ class RotateEntireEmblem(GroupStep):
                 velocity=vec3_to_vector3(vec3())
             ))
 
-            up = dot(axis_to_rotation(vec3(z=angle)), vec3(1 if drone.id < 64 else -1, 0, 0))
-            drone.reorient.target_orientation = look_at(vec3(0, 0, 1), up)
+            up = dot(axis_to_rotation(vec3(z=angle)), vec3(-1, 0, 0))
+            drone.reorient.target_orientation = look_at(vec3(0, 0, -1), up)
             drone.reorient.step(self.dt)
             drone.controls = drone.reorient.controls
 
@@ -144,26 +141,25 @@ class RotateCars(GroupStep):
 
             boost = False
             if t < 1.0:
-                ori = look_at(vec3(0.05, 0.01, 1), vec3(-1, 0, 0) * -1 if drone.id < 64 else vec3(-1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(-1, 0, 0))
             elif t < 3.0:
-                ori = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0) * -1 if drone.id < 64 else vec3(1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(1, 0, 0))
             elif t < 5.0:
-                ori = look_at(vec3(0.05, 0.01, 1), vec3(-1, 0, 0) * -1 if drone.id < 64 else vec3(-1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(-1, 0, 0))
             elif t < 7.0:
-                ori = look_at(vec3(0.05, 0.01, -1), vec3(1, 0, 0) * -1 if drone.id < 64 else vec3(1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0))
             elif t < 9.0:
-                ori = look_at(vec3(0.05, 0.01, -1), vec3(1, 0, 0) * -1 if drone.id < 64 else vec3(1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0))
                 boost = True
             elif t < 10.0:
-                ori = look_at(vec3(0.05, 0.01, -1), vec3(1, 0, 0) * -1 if drone.id < 64 else vec3(1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0))
             elif t < 13.0:
-                ori = look_at(vec3(0.05, 0.01, -1), vec3(-1, 0, 0) * -1 if drone.id < 64 else vec3(-1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, 1), vec3(-1, 0, 0))
             elif t < 16.0:
-                ori = look_at(vec3(0.05, 0.01, 1), vec3(1, 0, 0) * -1 if drone.id < 64 else vec3(1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(1, 0, 0))
             else:
-                ori = look_at(vec3(0.05, 0.01, 1), vec3(-1, 0, 0) * -1 if drone.id < 64 else vec3(-1, 0, 0))
+                drone.reorient.target_orientation = look_at(vec3(0.05, 0.01, -1), vec3(-1, 0, 0))
 
-            drone.reorient.target_orientation = ori
             drone.reorient.step(self.dt)
             drone.controls = drone.reorient.controls
             drone.controls.boost = boost
@@ -201,12 +197,9 @@ target_logo = dict()
 indices = list(range(len(emblem_positions)))
 random.shuffle(indices)
 for index in indices:
-    if free_logo:
-        nearest_logo = min(free_logo, key=lambda pos: distance(pos, emblem_positions[index]))
-        free_logo.remove(nearest_logo)
-        target_logo[index] = nearest_logo
-    else:
-        target_logo[index] = emblem_positions[index] + vec3(4000, 0, 0)
+    nearest_logo = min(free_logo, key=lambda pos: distance(pos, emblem_positions[index]))
+    free_logo.remove(nearest_logo)
+    target_logo[index] = nearest_logo
 
 
 class EmblemToLogo(GroupStep):
@@ -280,14 +273,13 @@ class DaciaEmblemAirshow(Choreography):
             ]),
             RotateEntireEmblem(),
             EmblemToLogo(),
-            HideDrones(),
             Logo(),
             Wait(10.0),
         ]
 
     @staticmethod
     def get_num_bots() -> int:
-        return 128
+        return 90
 
     @staticmethod
     def get_appearances(num_bots: int) -> List[str]:
