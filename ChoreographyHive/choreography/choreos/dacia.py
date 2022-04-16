@@ -578,12 +578,12 @@ class Atom(StateSettingFlight):
 
     @classmethod
     def center(cls, t: float) -> vec3:
-        noise_scale = 1000
-        noise_speed = 0.2
+        noise_scale = 500
+        noise_coord = 0.2 * t + 0.02 * t ** 2
         return vec3(
-            noise_scale * cls.noise(noise_speed * t),
-            noise_scale * cls.noise(noise_speed * t + 10),
-            noise_scale * cls.noise(noise_speed * t + 20) * 0.1 + 1000
+            noise_scale * cls.noise(noise_coord),
+            noise_scale * cls.noise(noise_coord + 10),
+            noise_scale * cls.noise(noise_coord + 20) * 0.1 + 1000
         )
 
     @classmethod
@@ -693,6 +693,8 @@ class DaciaAirshow(Choreography):
         ]
 
         self.sequence = [
+            WaitKickoffCountdown(),
+            Wait(5.0),
             HideBall(),
             HideDrones(),
             # LightBallSpirals(),
@@ -709,6 +711,11 @@ class DaciaAirshow(Choreography):
             ExplodeBall(),
             Wait(5.0),
         ]
+
+        # self.sequence = ParallelStep([
+        #     HideDronesContinuous(),
+        #     Atom(),
+        # ]),
 
     @staticmethod
     def get_num_bots() -> int:
