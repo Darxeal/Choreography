@@ -5,7 +5,7 @@ from bisect import bisect_left
 from typing import List
 
 from perlin_noise import PerlinNoise
-from rlbot.utils.game_state_util import CarState, Physics, Vector3
+from rlbot.utils.game_state_util import CarState, Physics
 from rlbot.utils.structures.game_data_struct import GameTickPacket
 from rlbot.utils.structures.game_interface import GameInterface
 from scipy import interpolate
@@ -16,10 +16,9 @@ from choreography.steps.base_steps import StateSettingStep, PerDroneStep, DroneL
     mat3_to_rotator, GroupStep
 from choreography.steps.higher_order import ParallelStep, CompositeStep
 from choreography.steps.utils import WaitKickoffCountdown, Wait
-from choreography.utils.vector_math import distance, lerp, smootherlerp, sigmoid, invlerp, smoothlerp, smootherstep, \
-    smoothstep
+from choreography.utils.vector_math import distance, lerp, smootherlerp, sigmoid, invlerp, smoothstep
 from rlutilities.linear_algebra import vec3, vec2, look_at, normalize, dot, axis_to_rotation, norm, xy, clip, \
-    angle_between, cross, rotation, euler_to_rotation, eye3, mat3
+    angle_between, cross, rotation, eye3, mat3
 from rlutilities.simulation import Ball, Game, Field, ray, Car, sphere
 
 Game.set_mode("soccar")
@@ -350,8 +349,8 @@ class HideDrones(StateSettingStep):
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
             drone.position.z = 17
-            drone.position.x = 4000 + (drone.id // 5) * 200 - 700
-            drone.position.y = 5000 + (drone.id % 5) * 200
+            drone.position.x = 4000 + (drone.id // 5) * 150 - 9800
+            drone.position.y = 5000 + (drone.id % 5) * 150
 
 
 class HideDronesContinuous(StateSettingStep):
