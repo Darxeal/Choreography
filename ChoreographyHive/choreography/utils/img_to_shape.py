@@ -11,10 +11,11 @@ def convert_img_to_shape(image: str, pixel_size=1):
     shape = []
 
     img = np.asarray(Image.open(image))
+    img = np.transpose(img, (1, 0, 2))
 
     for y, row in enumerate(img):
         for x, pixel in enumerate(row):
-            if np.all(pixel == np.array([0, 0, 0])):
-                shape.append(vec2(x * pixel_size, y * pixel_size))
+            if np.all(pixel[:3] == np.array([0, 0, 0])):
+                shape.append(vec2(y * pixel_size, x * pixel_size))
 
     return shape
