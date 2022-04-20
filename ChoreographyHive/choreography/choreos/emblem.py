@@ -20,10 +20,15 @@ from rlutilities.linear_algebra import vec3, look_at, clip, dot, axis_to_rotatio
 
 emblem_shape = convert_img_to_shape("ChoreographyHive/assets/dacia-emblem.png")
 logo_shape = convert_img_to_shape("ChoreographyHive/assets/dacia-logo.png")
+
 emblem_positions = [vec3(0, (pos.x - 8) * 150, pos.y * 80 + 1000) for pos in emblem_shape]
 logo_positions = [vec3((pos.y - 4.8) * 50, -(pos.x - 26) * 100 + 50, 17) for pos in logo_shape]
+
+# move D slightly to the left
 for p in logo_positions[:23]:
     p.y += 50
+
+# move A slightly to the left
 for p in logo_positions[23:23 + 15]:
     p.y += 25
 
@@ -78,7 +83,6 @@ class RotateEntireEmblem(GroupStep):
             angle = smootherstep(0, 1, t) * math.pi * 2
             rot = axis_to_rotation(vec3(z=angle))
             drone_pos = dot(rot, emblem_pos)
-            # drone_pos.z -= (1 - self.time_since_start / self.duration) * 500
 
             result.car_states[drone.id] = CarState(Physics(
                 location=vec3_to_vector3(drone_pos),
@@ -91,6 +95,22 @@ class RotateEntireEmblem(GroupStep):
             drone.controls = drone.reorient.controls
 
         return result
+
+
+class WeirdReorientWithBoost(PerDroneStep):
+    duration = 15.0
+    target_indexes = range(len(emblem_shape))
+
+    def step(self, packet: GameTickPacket, drone: Drone, index: int):
+        drone.controls.boost = True
+        drone.reorient.target_orientation = axis_to_rotation(vec3(
+            math.sin(self.time_since_start),
+            math.cos(self.time_since_start),
+            math.cos(self.time_since_start + 1)
+        ))
+        drone.reorient.step(self.dt)
+        drone.controls = drone.reorient.controls
+        drone.controls.boost = True
 
 
 def triangle_wave(t, p):
@@ -114,7 +134,6 @@ class RotateCars(GroupStep):
             angle = math.sin(self.time_since_start * 0.7) * 0.4
             rot = axis_to_rotation(vec3(z=angle))
             drone_pos = dot(rot, emblem_pos)
-            # drone_pos.z -= triangle_wave(self.time_since_start, 10) * 500
             drone_pos += dot(axis_to_rotation(vec3(z=self.time_since_start * 0.7)), vec3(200, 0, 0))
 
             result.car_states[drone.id] = CarState(Physics(
@@ -162,28 +181,12 @@ class RotateCarsVertical(RotateCars):
         return self.time_since_start - abs(emblem_pos.z) / 1000
 
 
-class WeirdReorientWithBoost(PerDroneStep):
-    duration = 15.0
-    target_indexes = range(len(emblem_shape))
-
-    def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        drone.controls.boost = True
-        drone.reorient.target_orientation = axis_to_rotation(vec3(
-            math.sin(self.time_since_start),
-            math.cos(self.time_since_start),
-            math.cos(self.time_since_start + 1)
-        ))
-        drone.reorient.step(self.dt)
-        drone.controls = drone.reorient.controls
-        drone.controls.boost = True
-
-
 cost_matrix = numpy.array([[
     distance(emblem_positions[i], logo_positions[j])
     for j in range(len(logo_positions))]
     for i in range(len(emblem_positions))]
 )
-_, target_logo = linear_sum_assignment(cost_matrix)
+_, emblem_to_logo_index_map = linear_sum_assignment(cost_matrix)
 
 
 class EmblemToLogo(GroupStep):
@@ -198,7 +201,7 @@ class EmblemToLogo(GroupStep):
             start_t = 4
             emblem_pos = emblem_pos + vec3(z=min(self.time_since_start, start_t) * 100 - 500)
             t = clip(invlerp(start_t, 7 + emblem_shape[drone.id].y * 0.2, self.time_since_start), 0, 1)
-            drone_pos = smootherlerp(emblem_pos, logo_positions[target_logo[drone.id]], t)
+            drone_pos = smootherlerp(emblem_pos, logo_positions[emblem_to_logo_index_map[drone.id]], t)
 
             if t < 0.9:
                 result.car_states[drone.id] = CarState(Physics(

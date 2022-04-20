@@ -41,6 +41,24 @@ class HideBall(StateSettingStep):
         ball.angular_velocity = vec3(0, 0, 0)
 
 
+class HideDrones(StateSettingStep):
+    def set_drone_states(self, drones: List[Drone]):
+        for drone in drones:
+            drone.position.z = 17
+            drone.position.x = 4000 + (drone.id // 5) * 150 - 9800
+            drone.position.y = 5000 + (drone.id % 5) * 150
+
+
+class HideDronesContinuous(StateSettingStep):
+    duration = math.inf
+
+    def set_drone_states(self, drones: List[Drone]):
+        for drone in drones:
+            drone.position.z = 5000
+            drone.position.x = 100000
+            drone.position.y = 0
+
+
 class BillboardBall(StateSettingStep):
     def set_ball_state(self, ball: Ball):
         ball.position = vec3(22_620, -10_000, 5_700)
@@ -48,58 +66,51 @@ class BillboardBall(StateSettingStep):
         ball.angular_velocity = vec3(0, 0, 0)
 
 
-layer_cars = [7, 6] + [5] * 2 + [4] * 5 + [3] * 7
-assert sum(layer_cars) == 64
-cum_layer_cars = [sum(layer_cars[:i + 1]) for i in range(len(layer_cars))]
+tornado_layer_counts = [7, 6] + [5] * 2 + [4] * 5 + [3] * 7
+assert sum(tornado_layer_counts) == 64
+tornado_cumulative_layer_counts = [sum(tornado_layer_counts[:i + 1]) for i in range(len(tornado_layer_counts))]
 
-circ_group_index = [bisect_left(cum_layer_cars, i + 1) for i in range(64)]
-
-circ_index_in_group = [layer_cars[circ_group_index[i]] - cum_layer_cars[circ_group_index[i]] + i for i in range(64)]
-
-
-def radius(i: int) -> float:
-    # return int((hash(i * 3.98321) % 700) / 100 * 2) / 20 + 0.3
-    return circ_group_index[i] / len(layer_cars) * 0.7 + 0.3
+tornado_group_index = [bisect_left(tornado_cumulative_layer_counts, i + 1) for i in range(64)]
+tornado_index_in_group = [tornado_layer_counts[tornado_group_index[i]] -
+                          tornado_cumulative_layer_counts[tornado_group_index[i]] + i for i in range(64)]
 
 
-radius_to_speed = lambda r: 1 - r * 0.5
+def ground_tornado_radius(i: int) -> float:
+    return tornado_group_index[i] / len(tornado_layer_counts) * 0.7 + 0.3
 
 
-def circular(i: int, t: float) -> vec3:
-    # a = hash(i * 9.778) % (math.pi * 2)
-    a = circ_index_in_group[i] / layer_cars[circ_group_index[i]] * math.pi * 2
-    r = radius(i)
-    s = radius_to_speed(r)
+def tornado_unit_offset(i: int, t: float) -> vec3:
+    a = tornado_index_in_group[i] / tornado_layer_counts[tornado_group_index[i]] * math.pi * 2
+    r = ground_tornado_radius(i)
+    s = 1 - r * 0.5
     t += 10000
     return vec3(math.cos(a + t * s) * r, math.sin(a + t * s) * r, 0)
 
 
-# ellipse_radius = vec2(3500, 4500)
-ellipse_radius = vec2(3500, 3500)
+ground_tornado_radius_scale = 3500
 
 
-def elliptic(i: int, t: float) -> vec3:
-    c = circular(i, t)
-    return vec3(c.x * ellipse_radius.x, c.y * ellipse_radius.y, 0)
+def ground_tornado_offset(i: int, t: float) -> vec3:
+    return tornado_unit_offset(i, t) * ground_tornado_radius_scale
 
 
-class DistributeElliptic(StateSettingStep):
+class DistributeGroundTornado(StateSettingStep):
     def set_drone_states(self, drones: List[Drone]):
         for i in range(len(drones)):
-            drones[i].position = elliptic(i, 0)
+            drones[i].position = ground_tornado_offset(i, 0)
             drones[i].position.z = 30
-            drones[i].orientation = look_at(elliptic(i, 0.1) - elliptic(i, 0))
+            drones[i].orientation = look_at(ground_tornado_offset(i, 0.1) - ground_tornado_offset(i, 0))
             drones[i].angular_velocity = vec3()
             drones[i].velocity = vec3()
             drones[i].boost = 0
 
 
-elliptic_speed_multiplier = 0.6
+ground_tornado_speed = 0.6
 
 
-class DriveElliptic(PerDroneStep):
+class GroundTornadoDrive(PerDroneStep):
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
-        pos = elliptic(index, self.time_since_start * elliptic_speed_multiplier)
+        pos = ground_tornado_offset(index, self.time_since_start * ground_tornado_speed)
         drone.drive.target = pos
         drone.drive.speed = distance(drone.position, pos) * 3.0
         drone.drive.step(self.dt)
@@ -126,15 +137,13 @@ LARGE_PADS = {
 class DetourForBigPads(DroneListStep):
     duration = 25
 
-    # duration = 0
-
     def step(self, packet: GameTickPacket, drones: List[Drone]):
         if self.time_since_start < 2.0:
             return
         for pad_index, pad_position in LARGE_PADS.items():
             if packet.game_boosts[pad_index].is_active:
                 nearest_drone = min(drones, key=lambda drone: distance(drone.position + drone.velocity, pad_position))
-                if radius(nearest_drone.id) > 0.9:
+                if ground_tornado_radius(nearest_drone.id) > 0.9:
                     if distance(pad_position, nearest_drone.position) > 600:
                         nearest_drone.drive.target = pad_position
                         nearest_drone.drive.step(self.dt)
@@ -148,21 +157,6 @@ class DetourForBigPads(DroneListStep):
 wait_between_drifting_and_tornado = 3.0
 
 
-def wave(x: float) -> float:
-    """Sinus but goes from 0 to 1 to 0 ..."""
-    return (math.sin((2 * x + 3) * math.pi / 2) + 1) / 2
-
-
-def wave_deriv(x: float) -> float:
-    """First derivative of the wave function"""
-    return 0.5 * math.pi * math.sin(math.pi * x)
-
-
-def wave_integral(x: float) -> float:
-    """Integral of the wave function"""
-    return 0.5 * (x - math.sin(math.pi * x) / math.pi)
-
-
 def smooth_start(x: float) -> float:
     """Starts smooth as a quadratic function and transitions into a linear function"""
     return x ** 2 if x < 0.5 else x - 0.25
@@ -173,7 +167,7 @@ random_values = [random.random() for _ in range(64)]
 
 
 class Tornado(GroupStep):
-    duration = 50.0 + DetourForBigPads.duration
+    duration = 45.0 + DetourForBigPads.duration
 
     jump_interval = 2.0
 
@@ -185,41 +179,32 @@ class Tornado(GroupStep):
         result = super().perform(packet, drones, interface)
         car_states = {}
         for drone in drones:
-            drone_group_id = circ_group_index[drone.id]
+            drone_group_id = tornado_group_index[drone.id]
             time_since_jump = self.time_since_start - self.jump_time(drone_group_id)
             if time_since_jump > 0:
                 target_height = 400 + (1 - drone_group_id / 16) * 1400 * smoothstep(0, 1,
                                                                                     min(time_since_jump * 0.2, 1))
 
-                # tornado_radius = 200 + (target_height / 1800) ** 2 * 1800 * 0.8 + random_values[drone.id] * 300
                 tornado_radius = 400 + (target_height / 1800) ** 2 * 1800 * 0.8
                 target_radius = smootherlerp(
-                    a=ellipse_radius.x,
+                    a=ground_tornado_radius_scale,
                     b=tornado_radius,
                     t=min(time_since_jump * 0.2, 1)
                 )
 
-                # height_speed = 0.07
-                # additional_t = smooth_start(time_since_jump * (
-                #         4.0 - target_radius / 500  # - radius(drone.id) * 0.5
-                # ) / 20) * 20
                 additional_t = smooth_start((1 + drone_group_id / 16 * 5) * max(0, time_since_jump - 1.0) * 0.5)
                 additional_t = smooth_start(additional_t / 10) * 10
-                # additional_t = time_since_jump
-                # additional_t += (wave(time_since_jump * height_speed + 0.2) - wave(0.2)) * 5.0
-                t = self.time_since_start * elliptic_speed_multiplier + additional_t - 0.17
 
-                # target_height = 300 + wave(time_since_jump * height_speed) * 1500
+                t = self.time_since_start * ground_tornado_speed + additional_t - 0.17
 
                 def tornado_pos(add):
-                    c = circular(drone.id, t + add)
+                    c = tornado_unit_offset(drone.id, t + add)
                     return smootherlerp(c, normalize(c), min((time_since_jump + add) * 0.2, 1)) * target_radius
 
                 pos = tornado_pos(0 - 0.04)
                 t_ahead = 1.5
                 pos_ahead = tornado_pos(t_ahead)
 
-                # pos.z = lerp(17, target_height, (smootherstep(0, 1, time_since_jump * 0.5 + 0.5) - 0.5) * 2)
                 pos.z = lerp(17, target_height, min(1, time_since_jump * 0.8) ** 0.5)
                 pos_ahead.z = lerp(17, target_height, min(1, (time_since_jump + t_ahead) * 0.8) ** 0.5)
 
@@ -232,9 +217,6 @@ class Tornado(GroupStep):
 
                 car_states[drone.id] = CarState(Physics(
                     location=vec3_to_vector3(pos),
-                    # location=vec3_to_vector3(lerp(drone.position, pos, 0.0005)),
-                    # location=vec3_to_vector3(lerp(drone.position, pos, 0.000001)),
-                    # location=vec3_to_vector3(lerp(drone.position, pos, 0.1)),
                     rotation=mat3_to_rotator(orientation),
                     velocity=vec3_to_vector3((pos_ahead - pos) / t_ahead)
                 ), boost_amount=100)
@@ -262,7 +244,7 @@ class ExplodeBall(StateSettingStep):
         ball.position = vec3(0, 5300, 300)
 
 
-class LandSmoothlyAndTransitionToFlow(PerDroneStep):
+class LandSmoothlyAndTransitionToZigZag(PerDroneStep):
     duration = 3.0
 
     def step(self, packet: GameTickPacket, drone: Drone, index: int):
@@ -296,7 +278,7 @@ class InfiniteBoost(GroupStep):
         return result
 
 
-class Flow(StateSettingStep):
+class ZigZag(StateSettingStep):
     duration = 50.0
     noise = PerlinNoise(seed=42, octaves=2)
 
@@ -345,24 +327,6 @@ class Flow(StateSettingStep):
             drone.controls.handbrake = True
 
 
-class HideDrones(StateSettingStep):
-    def set_drone_states(self, drones: List[Drone]):
-        for drone in drones:
-            drone.position.z = 17
-            drone.position.x = 4000 + (drone.id // 5) * 150 - 9800
-            drone.position.y = 5000 + (drone.id % 5) * 150
-
-
-class HideDronesContinuous(StateSettingStep):
-    duration = math.inf
-
-    def set_drone_states(self, drones: List[Drone]):
-        for drone in drones:
-            drone.position.z = 5000
-            drone.position.x = 100000
-            drone.position.y = 0
-
-
 bolt_points = [
     vec2(-0.3, 1.0),
     vec2(-0.1, 0.2),
@@ -384,7 +348,7 @@ class LightningBolt(StateSettingStep):
     speed = 2000
     intervals = 1250
     target_indexes = range(17)
-    duration = 25.0
+    duration = 20.0
 
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
@@ -413,7 +377,6 @@ class LightningBolt(StateSettingStep):
             circle_forward = normalize(vec3(math.cos(angle + math.pi / 2), math.sin(angle + math.pi / 2), 0))
             drone.orientation = look_at(lerp(circle_forward, bolt_forward, end_t))
 
-            # drone.velocity = forward * self.speed
             drone.velocity = vec3()
             drone.angular_velocity = vec3()
 
@@ -426,19 +389,19 @@ class StateSettingFlight(StateSettingStep, ABC):
     lookahead_t = 0.5
 
     @classmethod
-    def pos_at_time(cls, t: float, i: int) -> vec3:
+    def position(cls, t: float, i: int) -> vec3:
         raise NotImplementedError
 
     @classmethod
-    def up_at_pos_time(cls, t: float, pos: vec3) -> vec3:
+    def up(cls, t: float, pos: vec3) -> vec3:
         raise NotImplementedError
 
     def set_drone_states(self, drones: List[Drone]):
         for drone in drones:
-            pos = self.pos_at_time(self.time_since_start, drone.id)
-            pos_ahead = self.pos_at_time(self.time_since_start + self.lookahead_t, drone.id)
+            pos = self.position(self.time_since_start, drone.id)
+            pos_ahead = self.position(self.time_since_start + self.lookahead_t, drone.id)
             drone.position = pos
-            drone.orientation = look_at(pos_ahead - pos, self.up_at_pos_time(self.time_since_start, pos))
+            drone.orientation = look_at(pos_ahead - pos, self.up(self.time_since_start, pos))
             drone.velocity = (pos_ahead - pos) / self.lookahead_t
             drone.boost = 100
             drone.controls.boost = True
@@ -456,7 +419,7 @@ class BoltToSpirals(StateSettingFlight):
     target_indexes = range(n_layers * bots_per_layer)
 
     @classmethod
-    def pos_at_time(cls, t: float, i: int) -> vec3:
+    def position(cls, t: float, i: int) -> vec3:
         group_index = int(i / cls.bots_per_layer)
         index_in_group = i % cls.bots_per_layer
 
@@ -477,7 +440,7 @@ class BoltToSpirals(StateSettingFlight):
         return height_offset + orbit_offset
 
     @classmethod
-    def up_at_pos_time(cls, t: float, pos: vec3) -> vec3:
+    def up(cls, t: float, pos: vec3) -> vec3:
         return lerp(vec3(z=1), normalize(vec3(0, 0, 0.5) - normalize(xy(pos))), clip(pos.z / 100 - 0.1, 0, 1))
 
 
@@ -506,7 +469,7 @@ class LightBall(StateSettingFlight):
         return 1.0
 
     @classmethod
-    def pos_at_time(cls, t: float, i: int) -> vec3:
+    def position(cls, t: float, i: int) -> vec3:
         group_index = int(i / cls.bots_per_layer)
         index_in_group = i % cls.bots_per_layer
         group_sgn = (1 - 2 * (group_index % 2)) if cls.reverse_odd_layers else 1
@@ -526,7 +489,7 @@ class LightBall(StateSettingFlight):
         return cls.center + dot(cls.sphere_orientation(t), sphere_offset)
 
     @classmethod
-    def up_at_pos_time(cls, t: float, pos: vec3) -> vec3:
+    def up(cls, t: float, pos: vec3) -> vec3:
         return normalize(xy(cls.center) - xy(pos)) + vec3(0, 0, 0.3)
 
 
@@ -586,7 +549,7 @@ class Atom(StateSettingFlight):
         )
 
     @classmethod
-    def pos_at_time(cls, t: float, i: int) -> vec3:
+    def position(cls, t: float, i: int) -> vec3:
         orbit_index = i % cls.orbits
         index_in_orbit = int(i / cls.orbits)
 
@@ -600,7 +563,7 @@ class Atom(StateSettingFlight):
         return cls.center(t) + dot(axis_to_rotation(orbit_normal * angle), orbit * cls.radius)
 
     @classmethod
-    def up_at_pos_time(cls, t: float, pos: vec3) -> vec3:
+    def up(cls, t: float, pos: vec3) -> vec3:
         return cls.center(t) - pos
 
     def set_ball_state(self, ball: Ball):
@@ -618,24 +581,24 @@ class SpiralsIntoAtom(StateSettingFlight):
         return clip(invlerp(LightBallSpirals.duration - 0, LightBallSpirals.duration + 2, t), 0, 1)
 
     @classmethod
-    def pos_at_time(cls, t: float, i: int) -> vec3:
+    def position(cls, t: float, i: int) -> vec3:
         atom_target_indexes = range(
             len(LightBallSpirals.target_indexes) // 2 - len(Atom.target_indexes) // 2,
             len(LightBallSpirals.target_indexes) // 2 + len(Atom.target_indexes) // 2,
         )
         if i in atom_target_indexes:
             return smootherlerp(
-                LightBallSpirals.pos_at_time(t, i),
-                Atom.pos_at_time(t - LightBallSpirals.duration, i - atom_target_indexes.start),
+                LightBallSpirals.position(t, i),
+                Atom.position(t - LightBallSpirals.duration, i - atom_target_indexes.start),
                 cls.lerp_t(t)
             )
-        return LightBallSpirals.pos_at_time(t, i)
+        return LightBallSpirals.position(t, i)
 
     @classmethod
-    def up_at_pos_time(cls, t: float, pos: vec3) -> vec3:
+    def up(cls, t: float, pos: vec3) -> vec3:
         return smootherlerp(
-            LightBallSpirals.up_at_pos_time(t, pos),
-            Atom.up_at_pos_time(t - LightBallSpirals.duration, pos),
+            LightBallSpirals.up(t, pos),
+            Atom.up(t - LightBallSpirals.duration, pos),
             cls.lerp_t(t)
         )
 
@@ -650,9 +613,9 @@ class DaciaAirshow(Choreography):
             ChargeBallWithGoalExplosion(),
             Wait(1.0),
             HideBall(),
-            DistributeElliptic(),
+            DistributeGroundTornado(),
             ParallelStep([
-                DriveElliptic(),
+                GroundTornadoDrive(),
                 CompositeStep([
                     DetourForBigPads(),
                     Wait(wait_between_drifting_and_tornado),
@@ -662,43 +625,19 @@ class DaciaAirshow(Choreography):
             TeleportBallToCenter(),
             ExplodeBall(),
             ParallelStep([
-                LandSmoothlyAndTransitionToFlow(),
+                LandSmoothlyAndTransitionToZigZag(),
                 InfiniteBoost(),
             ]),
             Wait(1.0),
 
             HideBall(),
             HideDrones(),
-            Flow(),
+            ZigZag(),
 
-            HideBall(),
             HideDrones(),
             LightningBolt(),
 
             HideDrones(),
-            LightBallSpirals(),
-
-            HideDrones(),
-            LightBall(),
-
-            ChargeBallWithGoalExplosion(),
-            Wait(1.0),
-            HideDrones(),
-            TeleportBallToCenter(),
-            HideDrones(),
-            Atom(),
-            ExplodeBall(),
-            Wait(10.0),
-        ]
-
-        self.sequence = [
-            WaitKickoffCountdown(),
-            Wait(5.0),
-            HideBall(),
-            HideDrones(),
-            # LightBallSpirals(),
-            # HideDrones(),
-            # Atom(),
             SpiralsIntoAtom(),
 
             ChargeBallWithGoalExplosion(),
@@ -710,11 +649,6 @@ class DaciaAirshow(Choreography):
             ExplodeBall(),
             Wait(5.0),
         ]
-
-        # self.sequence = ParallelStep([
-        #     HideDronesContinuous(),
-        #     Atom(),
-        # ]),
 
     @staticmethod
     def get_num_bots() -> int:
